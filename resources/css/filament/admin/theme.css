@@ -1,0 +1,199 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+.fi-sidebar {
+    background-color: #111827;
+    background-image: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+}
+
+.dark .fi-sidebar {
+    background-color: #111827;
+    background-image: linear-gradient(180deg, #111827 0%, #0f172a 100%);
+}
+
+.fi-sidebar .fi-sidebar-header {
+    background-color: #111827;
+    border-bottom: 1px solid rgb(255 255 255 / 0.08);
+    box-shadow: none;
+}
+
+.dark .fi-sidebar .fi-sidebar-header {
+    background-color: #111827;
+}
+
+.fi-sidebar .fi-logo {
+    color: #f8fafc;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.fi-sidebar-nav {
+    padding-block: 1.75rem;
+}
+
+.fi-sidebar-nav-groups {
+    gap: 1.5rem;
+}
+
+.fi-sidebar .fi-sidebar-group-label {
+    color: #94a3b8;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.fi-sidebar .fi-sidebar-group-btn .fi-icon,
+.fi-sidebar .fi-sidebar-group-dropdown-trigger-btn .fi-icon {
+    color: #94a3b8;
+}
+
+.fi-sidebar .fi-sidebar-group-dropdown-trigger-btn:hover,
+.fi-sidebar .fi-sidebar-group-dropdown-trigger-btn:focus-visible {
+    background-color: rgb(255 255 255 / 0.05);
+}
+
+.fi-sidebar .fi-sidebar-item-btn > .fi-icon,
+.fi-sidebar .fi-sidebar-database-notifications-btn > .fi-icon {
+    color: #a3afbf;
+}
+
+.fi-sidebar .fi-sidebar-item-label,
+.fi-sidebar .fi-sidebar-database-notifications-btn-label {
+    color: #dbe3ee;
+}
+
+.fi-sidebar .fi-sidebar-item-btn {
+    min-height: 2.625rem;
+    border-radius: 0.75rem;
+    transition:
+        background-color 150ms ease,
+        color 150ms ease,
+        box-shadow 150ms ease;
+}
+
+.fi-sidebar .fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover,
+.fi-sidebar .fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:focus-visible,
+.fi-sidebar .fi-sidebar-database-notifications-btn:hover,
+.fi-sidebar .fi-sidebar-database-notifications-btn:focus-visible {
+    background-color: rgb(255 255 255 / 0.07);
+}
+
+.fi-sidebar .fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+    background-color: rgb(255 255 255 / 0.09);
+    box-shadow: inset 3px 0 0 #f59e0b;
+}
+
+.fi-sidebar .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-icon {
+    color: #fbbf24;
+}
+
+.fi-sidebar .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-sidebar-item-label {
+    color: #fcd34d;
+    font-weight: 600;
+}
+
+.fi-sidebar .fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-sidebar-item-grouped-border > .fi-sidebar-item-grouped-border-part {
+    background-color: #f59e0b;
+}
+
+.fi-sidebar .fi-sidebar-item-grouped-border-part-not-first,
+.fi-sidebar .fi-sidebar-item-grouped-border-part-not-last {
+    background-color: #374151;
+}
+
+.fi-sidebar .fi-sidebar-item-grouped-border-part {
+    background-color: #6b7280;
+}
+
+.fi-sidebar .fi-sidebar-footer {
+    border-color: rgb(255 255 255 / 0.1);
+    padding-top: 1rem;
+}
+
+.fi-sidebar .fi-user-menu-trigger .fi-user-menu-trigger-text {
+    color: #e5e7eb;
+}
+
+.fi-sidebar .fi-user-menu-trigger .fi-icon {
+    color: #94a3b8;
+}
+
+.fi-sidebar .fi-user-menu-trigger:hover .fi-icon,
+.fi-sidebar .fi-user-menu-trigger:focus-visible .fi-icon {
+    color: #fbbf24;
+}
+
+.fi-sidebar .fi-icon-btn {
+    color: #94a3b8;
+}
+
+.fi-sidebar .fi-icon-btn:hover,
+.fi-sidebar .fi-icon-btn:focus-visible {
+    color: #e2e8f0;
+}
+
+.fi-topbar {
+    background-color: rgb(255 255 255 / 0.96);
+    border-bottom: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgb(15 23 42 / 0.04);
+    backdrop-filter: blur(12px);
+}
+
+.dark .fi-topbar {
+    background-color: rgb(17 24 39 / 0.96);
+    border-bottom-color: rgb(255 255 255 / 0.08);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.16);
+}
+
+.fi-topbar .fi-logo {
+    color: #111827;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+}
+
+.dark .fi-topbar .fi-logo {
+    color: #f8fafc;
+}
+
+.fi-topbar .fi-icon-btn {
+    border-radius: 0.75rem;
+    color: #64748b;
+    transition:
+        background-color 150ms ease,
+        color 150ms ease;
+}
+
+.fi-topbar .fi-icon-btn:hover,
+.fi-topbar .fi-icon-btn:focus-visible {
+    background-color: #f1f5f9;
+    color: #1f2937;
+}
+
+.dark .fi-topbar .fi-icon-btn {
+    color: #9ca3af;
+}
+
+.dark .fi-topbar .fi-icon-btn:hover,
+.dark .fi-topbar .fi-icon-btn:focus-visible {
+    background-color: rgb(255 255 255 / 0.08);
+    color: #f9fafb;
+}
+
+.fi-topbar .fi-user-menu-trigger {
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    transition: background-color 150ms ease;
+}
+
+.fi-topbar .fi-user-menu-trigger:hover,
+.fi-topbar .fi-user-menu-trigger:focus-visible {
+    background-color: #f1f5f9;
+}
+
+.dark .fi-topbar .fi-user-menu-trigger:hover,
+.dark .fi-topbar .fi-user-menu-trigger:focus-visible {
+    background-color: rgb(255 255 255 / 0.08);
+}

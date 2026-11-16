@@ -1,0 +1,39 @@
+services:
+  app:
+    build: .
+    image: rsv-helmet-laravel
+    working_dir: /var/www/html
+    # Jalankan sebagai user host agar file yang dibuat container (log, cache,
+    # hasil artisan) tetap bisa diedit tanpa sudo.
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      HOME: /tmp
+    ports:
+      - "8001:8000"
+    volumes:
+      - .:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: "${DB_DATABASE:-rsv_helmet}"
+      MARIADB_USER: "${DB_USERNAME:-laravel}"
+      MARIADB_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD harus diset di .env}"
+      MARIADB_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:-rootpassword}"
+    ports:
+      - "3308:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  db-data:
