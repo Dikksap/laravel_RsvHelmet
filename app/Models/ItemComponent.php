@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'quantity',
     'note',
     'is_active',
+    'sort_order',
 ])]
 class ItemComponent extends Model
 {
@@ -28,6 +29,7 @@ class ItemComponent extends Model
         return [
             'quantity' => 'decimal:3',
             'is_active' => 'boolean',
+            'sort_order' => 'integer',
         ];
     }
 

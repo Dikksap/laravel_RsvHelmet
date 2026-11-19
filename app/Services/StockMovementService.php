@@ -198,6 +198,94 @@ class StockMovementService
     }
 
     /**
+     * Pindahkan beberapa barang sekaligus dari satu gudang asal ke gudang tujuan.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<int, array{0: InventoryMovement, 1: InventoryMovement}>
+     */
+    public function transferMany(array $attributes): array
+    {
+        $originId = $attributes['warehouse_id'] ?? null;
+        $destinationId = $attributes['destination_warehouse_id'] ?? null;
+
+        if (blank($originId) || blank($destinationId)) {
+            throw ValidationException::withMessages([
+                'destination_warehouse_id' => 'Gudang asal dan gudang tujuan wajib dipilih.',
+            ]);
+        }
+
+        if ((int) $originId === (int) $destinationId) {
+            throw ValidationException::withMessages([
+                'destination_warehouse_id' => 'Gudang tujuan harus berbeda dari gudang asal.',
+            ]);
+        }
+
+        $quantities = [];
+
+        foreach ((array) ($attributes['items'] ?? []) as $item) {
+            $itemId = (string) ($item['item_id'] ?? '');
+            $quantity = (float) ($item['quantity'] ?? 0);
+
+            if (blank($itemId) || $quantity <= 0) {
+                continue;
+            }
+
+            $quantities[$itemId] = ($quantities[$itemId] ?? 0) + $quantity;
+        }
+
+        if ($quantities === []) {
+            throw ValidationException::withMessages([
+                'items' => 'Pilih minimal satu barang dengan jumlah lebih dari 0.',
+            ]);
+        }
+
+        $itemCodes = Item::query()
+            ->whereIn('id', array_keys($quantities))
+            ->pluck('item_code', 'id');
+
+        $shortages = [];
+
+        foreach ($quantities as $itemId => $quantity) {
+            $onHand = $this->onHand($itemId, $originId);
+
+            if ($onHand < $quantity) {
+                $shortages[] = ($itemCodes[$itemId] ?? $itemId)
+                    .' butuh '.Number::format($quantity, maxPrecision: 3, locale: app()->getLocale())
+                    .', tersedia '.Number::format($onHand, maxPrecision: 3, locale: app()->getLocale());
+            }
+        }
+
+        if ($shortages !== []) {
+            throw ValidationException::withMessages([
+                'items' => 'Stok tidak mencukupi — '.implode('; ', $shortages).'.',
+            ]);
+        }
+
+        $reference = filled($attributes['reference'] ?? null)
+            ? $attributes['reference']
+            : 'PINDAH-'.now()->format('Ymd-His');
+
+        return DB::transaction(function () use ($attributes, $quantities, $originId, $destinationId, $reference): array {
+            $movements = [];
+
+            foreach ($quantities as $itemId => $quantity) {
+                $movements[] = $this->transfer([
+                    'item_id' => $itemId,
+                    'warehouse_id' => $originId,
+                    'destination_warehouse_id' => $destinationId,
+                    'quantity' => $quantity,
+                    'occurred_at' => $attributes['occurred_at'] ?? now(),
+                    'reference' => $reference,
+                    'note' => $attributes['note'] ?? null,
+                    'created_by' => $attributes['created_by'] ?? auth()->id(),
+                ]);
+            }
+
+            return $movements;
+        });
+    }
+
+    /**
      * Hapus transaksi dan kembalikan saldo stok. Bila bagian dari pindah gudang,
      * kedua baris (keluar & masuk) dihapus sekaligus.
      */

@@ -7,14 +7,22 @@ use App\Filament\Resources\InventoryBalances\Pages\EditInventoryBalance;
 use App\Filament\Resources\InventoryBalances\Pages\ListInventoryBalances;
 use App\Models\InventoryBalance;
 use App\Models\Item;
+use App\Models\Warehouse;
+use App\Services\StockMovementService;
 use BackedEnum;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
@@ -23,7 +31,12 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Number;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
 class InventoryBalanceResource extends Resource
@@ -190,10 +203,202 @@ class InventoryBalanceResource extends Resource
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    self::transferBulkAction(),
                     DeleteBulkAction::make(),
                 ]),
             ])
             ->defaultSort('warehouse_id');
+    }
+
+    private static function transferBulkAction(): BulkAction
+    {
+        return BulkAction::make('transfer')
+            ->label('Pindah gudang')
+            ->icon('heroicon-o-arrows-right-left')
+            ->color('warning')
+            ->modalHeading('Pindah gudang massal')
+            ->modalDescription('Stok barang terpilih dipindahkan ke gudang tujuan. Barang dari gudang asal berbeda diproses otomatis per gudang.')
+            ->modalSubmitActionLabel('Pindahkan')
+            ->schema([
+                Section::make('Tujuan pemindahan')
+                    ->columns(2)
+                    ->schema([
+                        Select::make('destination_warehouse_id')
+                            ->label('Gudang tujuan')
+                            ->options(fn (): array => Warehouse::query()
+                                ->where('is_active', true)
+                                ->orderBy('name')
+                                ->pluck('name', 'id')
+                                ->all())
+                            ->required()
+                            ->searchable()
+                            ->helperText('Stok dikurangi dari gudang asal masing-masing lalu ditambahkan ke gudang ini.'),
+                        DateTimePicker::make('occurred_at')
+                            ->label('Tanggal & waktu')
+                            ->default(now())
+                            ->required(),
+                        TextInput::make('reference')
+                            ->label('No. referensi')
+                            ->maxLength(100)
+                            ->placeholder('Otomatis')
+                            ->helperText('Kosongkan untuk nomor otomatis. Nomor ini dipakai untuk menandai seluruh barang dalam aksi ini.'),
+                        Textarea::make('note')
+                            ->label('Catatan')
+                            ->rows(3),
+                    ]),
+                Repeater::make('items')
+                    ->label('Barang yang dipindahkan')
+                    ->table([
+                        TableColumn::make('Kode'),
+                        TableColumn::make('Barang'),
+                        TableColumn::make('Gudang asal'),
+                        TableColumn::make('Stok tersedia'),
+                        TableColumn::make('Jumlah'),
+                    ])
+                    ->schema([
+                        Hidden::make('balance_id'),
+                        Hidden::make('on_hand'),
+                        TextInput::make('item_code')
+                            ->hiddenLabel()
+                            ->disabled()
+                            ->dehydrated(false),
+                        TextInput::make('item_name')
+                            ->hiddenLabel()
+                            ->disabled()
+                            ->dehydrated(false),
+                        TextInput::make('warehouse_name')
+                            ->hiddenLabel()
+                            ->disabled()
+                            ->dehydrated(false),
+                        TextInput::make('on_hand_display')
+                            ->hiddenLabel()
+                            ->disabled()
+                            ->dehydrated(false),
+                        TextInput::make('quantity')
+                            ->hiddenLabel()
+                            ->numeric()
+                            ->minValue(0.001)
+                            ->maxValue(fn (Get $get): float => (float) $get('on_hand'))
+                            ->required(),
+                    ])
+                    ->addable(false)
+                    ->reorderable(false)
+                    ->deletable()
+                    ->minItems(1)
+                    ->columnSpanFull(),
+            ])
+            ->fillForm(function (EloquentCollection $records): array {
+                $records->loadMissing(['item', 'warehouse']);
+
+                return [
+                    'occurred_at' => now(),
+                    'items' => $records
+                        ->filter(fn (InventoryBalance $balance): bool => (float) $balance->quantity_on_hand > 0)
+                        ->sortBy(fn (InventoryBalance $balance): string => ($balance->warehouse?->name ?? '')
+                            .' '.($balance->item?->item_code ?? ''))
+                        ->map(fn (InventoryBalance $balance): array => [
+                            'balance_id' => $balance->getKey(),
+                            'on_hand' => (float) $balance->quantity_on_hand,
+                            'item_code' => $balance->item?->item_code,
+                            'item_name' => $balance->item?->item_name,
+                            'warehouse_name' => $balance->warehouse?->name,
+                            'on_hand_display' => Number::format((float) $balance->quantity_on_hand, maxPrecision: 3, locale: app()->getLocale()),
+                            'quantity' => (float) $balance->quantity_on_hand,
+                        ])
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->action(function (EloquentCollection $records, array $data, BulkAction $action): void {
+                $balances = $records
+                    ->loadMissing('item')
+                    ->keyBy(fn (InventoryBalance $balance): string => (string) $balance->getKey());
+
+                try {
+                    $items = collect($data['items'] ?? [])
+                        ->map(function (array $row) use ($balances): ?array {
+                            $balance = $balances->get((string) ($row['balance_id'] ?? ''));
+                            $quantity = (float) ($row['quantity'] ?? 0);
+
+                            if (! $balance || $quantity <= 0) {
+                                return null;
+                            }
+
+                            if ($quantity > (float) $balance->quantity_on_hand) {
+                                throw ValidationException::withMessages([
+                                    'items' => 'Jumlah untuk '.($balance->item?->item_code ?? $balance->item_id)
+                                        .' melebihi stok tersedia '.Number::format((float) $balance->quantity_on_hand, maxPrecision: 3, locale: app()->getLocale()).'.',
+                                ]);
+                            }
+
+                            return [
+                                'warehouse_id' => $balance->warehouse_id,
+                                'item_id' => $balance->item_id,
+                                'quantity' => $quantity,
+                            ];
+                        })
+                        ->filter()
+                        ->values();
+
+                    if ($items->isEmpty()) {
+                        throw ValidationException::withMessages([
+                            'items' => 'Pilih minimal satu barang dengan jumlah lebih dari 0.',
+                        ]);
+                    }
+
+                    $destinationId = $data['destination_warehouse_id'] ?? null;
+
+                    if (blank($destinationId)) {
+                        throw ValidationException::withMessages([
+                            'destination_warehouse_id' => 'Gudang tujuan wajib dipilih.',
+                        ]);
+                    }
+
+                    if ($items->contains(fn (array $item): bool => (int) $item['warehouse_id'] === (int) $destinationId)) {
+                        throw ValidationException::withMessages([
+                            'destination_warehouse_id' => 'Gudang tujuan tidak boleh sama dengan gudang asal.',
+                        ]);
+                    }
+
+                    $reference = filled($data['reference'] ?? null)
+                        ? $data['reference']
+                        : 'PINDAH-'.now()->format('Ymd-His');
+
+                    $total = DB::transaction(function () use ($items, $data, $destinationId, $reference): int {
+                        $service = app(StockMovementService::class);
+
+                        return $items
+                            ->groupBy('warehouse_id')
+                            ->sum(function (Collection $group, int|string $originId) use ($service, $data, $destinationId, $reference): int {
+                                $service->transferMany([
+                                    'warehouse_id' => $originId,
+                                    'destination_warehouse_id' => $destinationId,
+                                    'occurred_at' => $data['occurred_at'] ?? now(),
+                                    'reference' => $reference,
+                                    'note' => $data['note'] ?? null,
+                                    'items' => $group->all(),
+                                ]);
+
+                                return $group->count();
+                            });
+                    });
+                } catch (ValidationException $exception) {
+                    Notification::make()
+                        ->danger()
+                        ->title('Pindah gudang gagal')
+                        ->body(collect($exception->errors())->flatten()->first())
+                        ->persistent()
+                        ->send();
+
+                    $action->halt();
+                }
+
+                Notification::make()
+                    ->success()
+                    ->title('Stok berhasil dipindahkan')
+                    ->body("{$total} barang dipindahkan ke gudang tujuan.")
+                    ->send();
+            });
     }
 
     private static function trimTrailingZeros(mixed $state): ?string
