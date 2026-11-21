@@ -43,6 +43,11 @@ class ItemImporter extends Importer
                 ->relationship('brand', 'name')
                 ->ignoreBlankState()
                 ->example('RSV'),
+            ImportColumn::make('division_id')
+                ->label('Divisi')
+                ->relationship('division', 'name')
+                ->ignoreBlankState()
+                ->example('Produksi'),
             ImportColumn::make('base_uom_id')
                 ->label('Satuan dasar')
                 ->relationship('baseUom', 'code')

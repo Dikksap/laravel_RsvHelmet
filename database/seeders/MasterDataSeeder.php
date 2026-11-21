@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Division;
 use App\Models\ItemAttribute;
 use App\Models\ItemAttributeValue;
 use App\Models\ItemType;
@@ -30,6 +31,12 @@ class MasterDataSeeder extends Seeder
                 'name' => $uom['name'],
                 'is_active' => true,
             ]);
+        }
+
+        $divisions = ['Produksi', 'Gudang', 'Purchasing', 'Penjualan', 'Keuangan', 'HRD', 'IT'];
+
+        foreach ($divisions as $division) {
+            Division::updateOrCreate(['name' => $division], ['is_active' => true]);
         }
 
         $itemTypes = ['Product', 'Service', 'RAW MATERIAL', 'SEMI MATERIAL', 'HABIS PAKAI', 'FINISH GOOD'];

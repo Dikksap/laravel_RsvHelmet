@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Brand;
+use App\Models\Division;
 use App\Models\Item;
 use App\Models\ItemCategory;
 use App\Models\ItemType;
@@ -32,6 +33,7 @@ class ItemFactory extends Factory
             'item_type_id' => ItemType::factory(),
             'category_id' => null,
             'brand_id' => null,
+            'division_id' => null,
             'base_uom_id' => Uom::factory(),
             'weight' => fake()->randomFloat(3, 0, 100),
             'weight_uom_id' => null,
@@ -59,6 +61,13 @@ class ItemFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'brand_id' => $brand?->getKey() ?? Brand::factory(),
+        ]);
+    }
+
+    public function withDivision(?Division $division = null): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'division_id' => $division?->getKey() ?? Division::factory(),
         ]);
     }
 

@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'item_type_id',
     'category_id',
     'brand_id',
+    'division_id',
     'base_uom_id',
     'weight',
     'weight_uom_id',
@@ -74,6 +75,11 @@ class Item extends Model
     public function brand(): BelongsTo
     {
         return $this->belongsTo(Brand::class, 'brand_id');
+    }
+
+    public function division(): BelongsTo
+    {
+        return $this->belongsTo(Division::class, 'division_id');
     }
 
     public function baseUom(): BelongsTo

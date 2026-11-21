@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'warehouse_id',
     'quantity',
     'production_batch_id',
+    'stock_opname_id',
+    'item_request_id',
     'transfer_group_id',
     'parent_movement_id',
     'occurred_at',
@@ -70,6 +72,16 @@ class InventoryMovement extends Model
     public function productionBatch(): BelongsTo
     {
         return $this->belongsTo(ProductionBatch::class);
+    }
+
+    public function stockOpname(): BelongsTo
+    {
+        return $this->belongsTo(StockOpname::class);
+    }
+
+    public function itemRequest(): BelongsTo
+    {
+        return $this->belongsTo(ItemRequest::class);
     }
 
     public function parentMovement(): BelongsTo

@@ -8,10 +8,13 @@ use App\Filament\Pages\BatchRealization;
 use App\Filament\Pages\BomBuilder;
 use App\Filament\Pages\StockCard;
 use App\Filament\Resources\Brands\BrandResource;
+use App\Filament\Resources\Divisions\DivisionResource;
+use App\Filament\Resources\Divisions\Pages\CreateDivision;
 use App\Filament\Resources\InventoryBalances\InventoryBalanceResource;
 use App\Filament\Resources\InventoryMovements\InventoryMovementResource;
 use App\Filament\Resources\ItemAttributes\ItemAttributeResource;
 use App\Filament\Resources\ItemCategories\ItemCategoryResource;
+use App\Filament\Resources\ItemRequests\ItemRequestResource;
 use App\Filament\Resources\Items\ItemResource;
 use App\Filament\Resources\Items\Pages\CreateItem;
 use App\Filament\Resources\Items\Pages\EditItem;
@@ -22,6 +25,7 @@ use App\Filament\Resources\ProductionBatches\ProductionBatchResource;
 use App\Filament\Resources\Uoms\UomResource;
 use App\Filament\Resources\Warehouses\WarehouseResource;
 use App\Models\Brand;
+use App\Models\Division;
 use App\Models\Item;
 use App\Models\ItemAttribute;
 use App\Models\ItemCategory;
@@ -56,6 +60,7 @@ class WarehouseResourcesTest extends TestCase
             ItemCategoryResource::class => 'Kategori Barang',
             ItemTypeResource::class => 'Jenis Barang',
             BrandResource::class => 'Merek',
+            DivisionResource::class => 'Divisi',
             ItemAttributeResource::class => 'Atribut Barang',
             UomResource::class => 'Satuan',
             WarehouseResource::class => 'Daftar Gudang',
@@ -74,6 +79,7 @@ class WarehouseResourcesTest extends TestCase
         $resources = [
             InventoryBalanceResource::class => ['Gudang', 'Stok Gudang'],
             InventoryMovementResource::class => ['Gudang', 'Transaksi Stok'],
+            ItemRequestResource::class => ['Gudang', 'Permintaan Barang'],
             StockCard::class => ['Gudang', 'Kartu Stok'],
             ProductionBatchResource::class => ['Produksi', 'Batch Produksi'],
             BomBuilder::class => ['Produksi', 'Komposisi Barang'],
@@ -165,6 +171,7 @@ class WarehouseResourcesTest extends TestCase
             '/admin/item-categories',
             '/admin/item-types',
             '/admin/brands',
+            '/admin/divisions',
             '/admin/item-attributes',
             '/admin/uoms',
         ];
@@ -181,6 +188,7 @@ class WarehouseResourcesTest extends TestCase
             '/admin/item-categories/create',
             '/admin/item-types/create',
             '/admin/brands/create',
+            '/admin/divisions/create',
             '/admin/item-attributes/create',
             '/admin/uoms/create',
         ];
@@ -200,6 +208,7 @@ class WarehouseResourcesTest extends TestCase
             '/admin/item-categories/'.ItemCategory::factory()->create()->getKey().'/edit',
             '/admin/item-types/'.ItemType::factory()->create()->getKey().'/edit',
             '/admin/brands/'.Brand::factory()->create()->getKey().'/edit',
+            '/admin/divisions/'.Division::factory()->create()->getKey().'/edit',
             "/admin/item-attributes/{$attribute->getKey()}/edit",
             '/admin/uoms/'.Uom::factory()->create()->getKey().'/edit',
         ];
@@ -228,6 +237,54 @@ class WarehouseResourcesTest extends TestCase
             'item_code' => 'HELM-001',
             'item_name' => 'Helmet Test',
         ]);
+    }
+
+    public function test_divisions_can_be_created_through_filament(): void
+    {
+        Livewire::test(CreateDivision::class)
+            ->fillForm([
+                'name' => 'Produksi',
+                'is_active' => true,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $division = Division::query()->where('name', 'Produksi')->sole();
+
+        $this->assertSame('Produksi', $division->name);
+        $this->assertTrue($division->is_active);
+    }
+
+    public function test_items_can_be_created_with_a_division(): void
+    {
+        $type = ItemType::factory()->create();
+        $uom = Uom::factory()->create();
+        $division = Division::factory()->create(['name' => 'Produksi']);
+
+        Livewire::test(CreateItem::class)
+            ->fillForm([
+                'item_code' => 'HELM-DIV-001',
+                'item_name' => 'Helmet Divisi',
+                'item_type_id' => $type->getKey(),
+                'base_uom_id' => $uom->getKey(),
+                'division_id' => $division->getKey(),
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $item = Item::query()->where('item_code', 'HELM-DIV-001')->sole();
+
+        $this->assertTrue($item->division->is($division));
+    }
+
+    public function test_deleting_a_division_leaves_its_items_without_a_division(): void
+    {
+        $division = Division::factory()->create();
+        $item = Item::factory()->withDivision($division)->create();
+
+        $division->delete();
+
+        $this->assertNull($item->fresh()->division_id);
     }
 
     public function test_item_import_and_export_action_modals_open(): void

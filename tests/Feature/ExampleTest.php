@@ -14,6 +14,8 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        $response->assertOk();
+        $response->assertSee('Permintaan Barang');
+        $response->assertSee(route('item-requests.create'), escape: false);
     }
 }

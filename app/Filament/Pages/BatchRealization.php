@@ -1,5 +1,4 @@
 <?php
-en
 
 namespace App\Filament\Pages;
 

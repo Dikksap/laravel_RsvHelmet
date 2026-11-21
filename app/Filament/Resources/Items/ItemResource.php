@@ -97,6 +97,11 @@ class ItemResource extends Resource
                             ->relationship('brand', 'name')
                             ->searchable()
                             ->preload(),
+                        Select::make('division_id')
+                            ->label('Divisi')
+                            ->relationship('division', 'name')
+                            ->searchable()
+                            ->preload(),
                     ]),
                 Section::make('Varian')
                     ->columns(2)
@@ -195,6 +200,10 @@ class ItemResource extends Resource
                     ->label('Merek')
                     ->sortable()
                     ->toggleable(),
+                TextColumn::make('division.name')
+                    ->label('Divisi')
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('baseUom.code')
                     ->label('Satuan'),
                 TextColumn::make('base_price')
@@ -223,6 +232,9 @@ class ItemResource extends Resource
                 SelectFilter::make('brand_id')
                     ->label('Merek')
                     ->relationship('brand', 'name'),
+                SelectFilter::make('division_id')
+                    ->label('Divisi')
+                    ->relationship('division', 'name'),
                 TernaryFilter::make('has_variants')
                     ->label('Punya varian'),
                 TernaryFilter::make('is_active')

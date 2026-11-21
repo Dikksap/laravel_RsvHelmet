@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Pages\InventoryBalanceSummary;
 use App\Filament\Resources\InventoryBalances\InventoryBalanceResource;
 use App\Filament\Resources\InventoryBalances\Pages\CreateInventoryBalance;
 use App\Filament\Resources\InventoryBalances\Pages\EditInventoryBalance;
@@ -9,6 +10,7 @@ use App\Filament\Resources\Warehouses\Pages\CreateWarehouse;
 use App\Filament\Resources\Warehouses\WarehouseResource;
 use App\Models\InventoryBalance;
 use App\Models\Item;
+use App\Models\ItemCategory;
 use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -55,11 +57,84 @@ class InventoryBalanceTest extends TestCase
             '/admin/inventory-balances',
             '/admin/inventory-balances/create',
             "/admin/inventory-balances/{$balance->getKey()}/edit",
+            InventoryBalanceSummary::getUrl(),
         ];
 
         foreach ($urls as $url) {
             $this->get($url)->assertOk();
         }
+    }
+
+    public function test_inventory_balance_summary_shows_stock_total_across_all_warehouses(): void
+    {
+        $item = Item::factory()->create();
+        $firstWarehouse = Warehouse::factory()->create();
+        $secondWarehouse = Warehouse::factory()->create();
+        InventoryBalance::factory()->create([
+            'item_id' => $item->getKey(),
+            'warehouse_id' => $firstWarehouse->getKey(),
+            'quantity_on_hand' => 25,
+        ]);
+        InventoryBalance::factory()->create([
+            'item_id' => $item->getKey(),
+            'warehouse_id' => $secondWarehouse->getKey(),
+            'quantity_on_hand' => 15,
+        ]);
+
+        Livewire::test(InventoryBalanceSummary::class)
+            ->assertSee('Total Stok Seluruh Gudang')
+            ->assertTableColumnStateSet('total_stock_all_warehouses', '40.000', $item);
+    }
+
+    public function test_inventory_balance_summary_scopes_stock_total_to_selected_warehouse(): void
+    {
+        $item = Item::factory()->create();
+        $otherItem = Item::factory()->create();
+        $firstWarehouse = Warehouse::factory()->create();
+        $secondWarehouse = Warehouse::factory()->create();
+
+        InventoryBalance::factory()->create([
+            'item_id' => $item->getKey(),
+            'warehouse_id' => $firstWarehouse->getKey(),
+            'quantity_on_hand' => 25,
+        ]);
+        InventoryBalance::factory()->create([
+            'item_id' => $item->getKey(),
+            'warehouse_id' => $secondWarehouse->getKey(),
+            'quantity_on_hand' => 15,
+        ]);
+        InventoryBalance::factory()->create([
+            'item_id' => $otherItem->getKey(),
+            'warehouse_id' => $secondWarehouse->getKey(),
+            'quantity_on_hand' => 5,
+        ]);
+
+        Livewire::test(InventoryBalanceSummary::class)
+            ->filterTable('warehouse_id', $firstWarehouse->getKey())
+            ->assertTableColumnStateSet('total_stock_all_warehouses', '25.000', $item)
+            ->assertCanSeeTableRecords([$item])
+            ->assertCanNotSeeTableRecords([$otherItem]);
+    }
+
+    public function test_inventory_balance_summary_filters_items_by_category_and_stock_status(): void
+    {
+        $category = ItemCategory::factory()->create();
+        $stockedItem = Item::factory()->withCategory($category)->create();
+        $outOfStockItem = Item::factory()->withCategory($category)->create();
+        $otherItem = Item::factory()->create();
+
+        InventoryBalance::factory()->create([
+            'item_id' => $stockedItem->getKey(),
+            'quantity_on_hand' => 10,
+        ]);
+
+        Livewire::test(InventoryBalanceSummary::class)
+            ->filterTable('category_id', $category->getKey())
+            ->assertCanSeeTableRecords([$stockedItem, $outOfStockItem])
+            ->assertCanNotSeeTableRecords([$otherItem])
+            ->filterTable('stock_status', 'out_of_stock')
+            ->assertCanSeeTableRecords([$outOfStockItem])
+            ->assertCanNotSeeTableRecords([$stockedItem, $otherItem]);
     }
 
     public function test_warehouses_can_be_created_through_filament(): void

@@ -28,6 +28,8 @@ class ItemExporter extends Exporter
                 ->label('Kategori'),
             ExportColumn::make('brand.name')
                 ->label('Merek'),
+            ExportColumn::make('division.name')
+                ->label('Divisi'),
             ExportColumn::make('baseUom.code')
                 ->label('Satuan dasar'),
             ExportColumn::make('parent.item_code')
