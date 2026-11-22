@@ -32,6 +32,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Number;
 use Illuminate\Validation\ValidationException;
+use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 use UnitEnum;
 
 class InventoryMovementResource extends Resource
@@ -86,18 +87,34 @@ class InventoryMovementResource extends Resource
                             ->visible(fn (Get $get): bool => $get('type') === InventoryMovement::TYPE_TRANSFER)
                             ->searchable()
                             ->helperText('Stok akan dikurangi dari gudang asal dan ditambahkan ke gudang tujuan.'),
-                        Select::make('item_id')
+                        InfiniteSelect::make('item_id')
                             ->label('Barang')
-                            ->relationship(
-                                name: 'item',
-                                titleAttribute: 'item_name',
-                                modifyQueryUsing: fn (Builder $query): Builder => $query
+                            ->getPaginatedOptionsUsing(function (int $offset, int $limit, ?string $search): array {
+                                $query = Item::query()
                                     ->where('is_stockable', true)
-                                    ->where('has_variants', false),
-                            )
-                            ->getOptionLabelFromRecordUsing(fn (Item $record): string => "{$record->item_code} — {$record->item_name}")
-                            ->searchable(['item_code', 'item_name'])
-                            ->preload()
+                                    ->where('has_variants', false)
+                                    ->when(filled($search), fn (Builder $query): Builder => $query->where(
+                                        fn (Builder $query): Builder => $query
+                                            ->where('item_code', 'like', "%{$search}%")
+                                            ->orWhere('item_name', 'like', "%{$search}%"),
+                                    ));
+
+                                $rows = $query->orderBy('item_name')->skip($offset)->take($limit + 1)->get();
+
+                                return [
+                                    'options' => $rows->take($limit)
+                                        ->mapWithKeys(fn (Item $item): array => [
+                                            $item->getKey() => "{$item->item_code} — {$item->item_name}",
+                                        ])
+                                        ->all(),
+                                    'hasMore' => $rows->count() > $limit,
+                                ];
+                            })
+                            ->getOptionLabelUsing(function ($value): ?string {
+                                $item = Item::query()->find($value);
+
+                                return $item ? "{$item->item_code} — {$item->item_name}" : null;
+                            })
                             ->required()
                             ->live(),
                         Select::make('production_batch_id')
@@ -244,7 +261,8 @@ class InventoryMovementResource extends Resource
                         return true;
                     }),
             ])
-            ->defaultSort('occurred_at', 'desc');
+            ->defaultSort('occurred_at', 'desc')
+            ->infinite(perPage: 50);
     }
 
     private static function componentConsumptionPreview(Get $get): HtmlString

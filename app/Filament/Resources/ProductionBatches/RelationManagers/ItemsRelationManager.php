@@ -8,7 +8,6 @@ use App\Services\BatchRequirementService;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Schemas\Schema;
@@ -16,6 +15,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
+use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 
 class ItemsRelationManager extends RelationManager
 {
@@ -27,18 +27,34 @@ class ItemsRelationManager extends RelationManager
     {
         return $schema
             ->components([
-                Select::make('item_id')
+                InfiniteSelect::make('item_id')
                     ->label('Barang')
-                    ->relationship(
-                        name: 'item',
-                        titleAttribute: 'item_name',
-                        modifyQueryUsing: fn (Builder $query): Builder => $query
+                    ->getPaginatedOptionsUsing(function (int $offset, int $limit, ?string $search): array {
+                        $query = Item::query()
                             ->where('is_stockable', true)
-                            ->where('has_variants', false),
-                    )
-                    ->getOptionLabelFromRecordUsing(fn (Item $record): string => "{$record->item_code} — {$record->item_name}")
-                    ->searchable(['item_code', 'item_name'])
-                    ->preload()
+                            ->where('has_variants', false)
+                            ->when(filled($search), fn (Builder $query): Builder => $query->where(
+                                fn (Builder $query): Builder => $query
+                                    ->where('item_code', 'like', "%{$search}%")
+                                    ->orWhere('item_name', 'like', "%{$search}%"),
+                            ));
+
+                        $rows = $query->orderBy('item_name')->skip($offset)->take($limit + 1)->get();
+
+                        return [
+                            'options' => $rows->take($limit)
+                                ->mapWithKeys(fn (Item $item): array => [
+                                    $item->getKey() => "{$item->item_code} — {$item->item_name}",
+                                ])
+                                ->all(),
+                            'hasMore' => $rows->count() > $limit,
+                        ];
+                    })
+                    ->getOptionLabelUsing(function ($value): ?string {
+                        $item = Item::query()->find($value);
+
+                        return $item ? "{$item->item_code} — {$item->item_name}" : null;
+                    })
                     ->required()
                     ->rule(fn (?ProductionBatchItem $record) => Rule::unique('production_batch_items', 'item_id')
                         ->where('production_batch_id', $this->getOwnerRecord()->getKey())

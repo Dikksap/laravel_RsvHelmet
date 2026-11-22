@@ -9,9 +9,11 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
@@ -35,6 +37,9 @@ class ItemRequestForm extends Component
     public bool $submitted = false;
 
     public ?string $submittedCode = null;
+
+    #[Locked]
+    public ?int $submittedId = null;
 
     public int $nextLineKey = 1;
 
@@ -142,12 +147,22 @@ class ItemRequestForm extends Component
 
         $this->submitted = true;
         $this->submittedCode = $itemRequest->code;
+        $this->submittedId = $itemRequest->getKey();
         $this->resetValidation();
     }
 
     public function createAnother(): void
     {
-        $this->reset(['requester_name', 'division_id', 'note', 'lines', 'website', 'submitted', 'submittedCode']);
+        $this->reset([
+            'requester_name',
+            'division_id',
+            'note',
+            'lines',
+            'website',
+            'submitted',
+            'submittedCode',
+            'submittedId',
+        ]);
 
         $this->addLine();
         $this->resetValidation();
@@ -210,6 +225,29 @@ class ItemRequestForm extends Component
             $searchResults[$index] = $this->searchItems($line['item_query']);
         }
 
+        $submittedRequest = $this->submittedId === null
+            ? null
+            : ItemRequest::query()
+                ->with(['division', 'lines.item.baseUom'])
+                ->findOrFail($this->submittedId);
+
+        $pdfUrl = $submittedRequest === null
+            ? null
+            : URL::temporarySignedRoute(
+                'item-requests.pdf',
+                now()->addDays(7),
+                ['itemRequest' => $submittedRequest],
+            );
+
+        $shareMessage = $submittedRequest === null
+            ? null
+            : implode("\n", [
+                "Permintaan barang {$submittedRequest->code}",
+                "Peminta: {$submittedRequest->requester_name}",
+                'Divisi: '.($submittedRequest->division?->name ?? '—'),
+                'Mohon proses permintaan ini.',
+            ]);
+
         return view('livewire.item-request-form', [
             'divisions' => Division::query()
                 ->where('is_active', true)
@@ -217,6 +255,9 @@ class ItemRequestForm extends Component
                 ->get(),
             'items' => $items,
             'searchResults' => $searchResults,
+            'submittedRequest' => $submittedRequest,
+            'pdfUrl' => $pdfUrl,
+            'shareMessage' => $shareMessage,
         ]);
     }
 

@@ -30,6 +30,8 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 use UnitEnum;
 
 class ItemResource extends Resource
@@ -108,11 +110,27 @@ class ItemResource extends Resource
                     ->schema([
                         Toggle::make('has_variants')
                             ->label('Barang induk memiliki varian'),
-                        Select::make('parent_item_id')
+                        InfiniteSelect::make('parent_item_id')
                             ->label('Barang induk')
-                            ->relationship('parent', 'item_name', ignoreRecord: true)
-                            ->searchable()
-                            ->preload()
+                            ->getPaginatedOptionsUsing(function (int $offset, int $limit, ?string $search, ?Item $record): array {
+                                $query = Item::query()
+                                    ->when(filled($search), fn (Builder $query): Builder => $query->where(
+                                        fn (Builder $query): Builder => $query
+                                            ->where('item_code', 'like', "%{$search}%")
+                                            ->orWhere('item_name', 'like', "%{$search}%"),
+                                    ))
+                                    ->when($record, fn (Builder $query): Builder => $query->whereKeyNot($record->getKey()));
+
+                                $rows = $query->orderBy('item_name')->skip($offset)->take($limit + 1)->get();
+
+                                return [
+                                    'options' => $rows->take($limit)
+                                        ->mapWithKeys(fn (Item $item): array => [$item->getKey() => $item->item_name])
+                                        ->all(),
+                                    'hasMore' => $rows->count() > $limit,
+                                ];
+                            })
+                            ->getOptionLabelUsing(fn ($value): ?string => Item::query()->find($value)?->item_name)
                             ->helperText('Kosongkan jika ini barang induk/master.'),
                     ]),
                 Section::make('Dimensi & berat')
@@ -256,7 +274,8 @@ class ItemResource extends Resource
                     DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('item_name');
+            ->defaultSort('item_name')
+            ->infinite(perPage: 50);
     }
 
     public static function getRelations(): array

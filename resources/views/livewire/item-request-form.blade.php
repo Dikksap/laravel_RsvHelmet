@@ -97,6 +97,10 @@
                     </div>
                 </div>
 
+                @if ($submittedRequest && $pdfUrl && $shareMessage)
+                    @include('livewire.partials.item-request-preview', ['submittedRequest' => $submittedRequest])
+                @endif
+
                 <!-- Next Steps Instruction Guide -->
                 <div class="rounded-xl border border-slate-200 bg-white p-5">
                     <h3 class="text-sm font-semibold text-slate-900">Langkah Selanjutnya:</h3>
@@ -128,22 +132,38 @@
                         Kembali ke Beranda
                     </a>
 
-                    <div class="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onclick="window.print()"
-                            class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-2xs transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"
-                        >
-                            <svg class="size-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24-1.258.625-2.429 1.89-2.429h7.78c1.265 0 2.13 1.171 1.89 2.429M6.75 9h10.5M6 18h12a2 2 0 002-2v-4a2 2 0 00-2-2H6a2 2 0 00-2 2v4a2 2 0 002 2zM9 18v2a1 1 0 001 1h4a1 1 0 001-1v-2" />
-                            </svg>
-                            Cetak Bukti
-                        </button>
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        @if ($pdfUrl && $submittedRequest)
+                            <a
+                                href="{{ $pdfUrl }}"
+                                download="Permintaan-{{ $submittedRequest->code }}.pdf"
+                                class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-2xs transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                            >
+                                Unduh PDF
+                            </a>
+
+                            <div
+                                x-data="{ isPreparingPdf: true, isPdfReady: false, isSharing: false, shareError: '' }"
+                                x-init="window.prepareItemRequestPdf(@js($pdfUrl), @js($submittedRequest->code)).then(() => { isPdfReady = true; isPreparingPdf = false }).catch((error) => { isPreparingPdf = false; shareError = error.message || 'PDF gagal disiapkan.' })"
+                            >
+                                <button
+                                    type="button"
+                                    :disabled="!isPdfReady || isSharing"
+                                    @click="isSharing = true; shareError = ''; window.shareItemRequestPdf(@js($pdfUrl), @js($submittedRequest->code), @js($shareMessage)).catch((error) => { if (error.name !== 'AbortError') shareError = error.message || 'PDF gagal dibagikan.' }).finally(() => isSharing = false)"
+                                    class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-70 sm:w-auto"
+                                >
+                                    <span x-show="isPreparingPdf">Menyiapkan PDF...</span>
+                                    <span x-cloak x-show="isPdfReady && !isSharing">Bagikan ke WhatsApp</span>
+                                    <span x-cloak x-show="isSharing">Membuka opsi berbagi...</span>
+                                </button>
+                                <p x-cloak x-show="shareError" x-text="shareError" class="mt-1 text-xs text-red-600" role="alert"></p>
+                            </div>
+                        @endif
 
                         <button
                             type="button"
                             wire:click="createAnother"
-                            class="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                            class="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-2xs transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"
                         >
                             <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\InventoryBalances\Pages;
 
 use App\Filament\Resources\InventoryBalances\InventoryBalanceResource;
+use App\Filament\Resources\Pages\InfiniteScrollListRecords;
 use Filament\Actions\CreateAction;
-use Filament\Resources\Pages\ListRecords;
 
-class ListInventoryBalances extends ListRecords
+class ListInventoryBalances extends InfiniteScrollListRecords
 {
     protected static string $resource = InventoryBalanceResource::class;
 

@@ -2,11 +2,11 @@
 
 namespace App\Filament\Resources\Uoms\Pages;
 
+use App\Filament\Resources\Pages\InfiniteScrollListRecords;
 use App\Filament\Resources\Uoms\UomResource;
 use Filament\Actions\CreateAction;
-use Filament\Resources\Pages\ListRecords;
 
-class ListUoms extends ListRecords
+class ListUoms extends InfiniteScrollListRecords
 {
     protected static string $resource = UomResource::class;
 

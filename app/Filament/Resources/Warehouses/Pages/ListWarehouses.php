@@ -2,11 +2,11 @@
 
 namespace App\Filament\Resources\Warehouses\Pages;
 
+use App\Filament\Resources\Pages\InfiniteScrollListRecords;
 use App\Filament\Resources\Warehouses\WarehouseResource;
 use Filament\Actions\CreateAction;
-use Filament\Resources\Pages\ListRecords;
 
-class ListWarehouses extends ListRecords
+class ListWarehouses extends InfiniteScrollListRecords
 {
     protected static string $resource = WarehouseResource::class;
 

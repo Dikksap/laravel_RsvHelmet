@@ -6,8 +6,8 @@ use App\Models\InventoryBalance;
 use App\Models\Item;
 use App\Models\ItemComponent;
 use BackedEnum;
+use Closure;
 use Filament\Actions\Action;
-use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Component;
@@ -19,6 +19,7 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use UnitEnum;
 
@@ -215,10 +216,35 @@ class BomBuilder extends Page implements HasTable
         return $schema
             ->statePath('data')
             ->components([
-                Select::make('parent_item_id')
+                InfiniteSelect::make('parent_item_id')
                     ->label('Barang jadi / semi material')
-                    ->options(fn (): array => $this->itemOptions())
-                    ->searchable()
+                    ->getPaginatedOptionsUsing(function (int $offset, int $limit, ?string $search): array {
+                        $query = Item::query()
+                            ->where('is_stockable', true)
+                            ->where('has_variants', false)
+                            ->when(filled($search), fn (Builder $query): Builder => $query->where(
+                                fn (Builder $query): Builder => $query
+                                    ->where('item_code', 'like', "%{$search}%")
+                                    ->orWhere('item_name', 'like', "%{$search}%"),
+                            ))
+                            ->with('baseUom');
+
+                        $rows = $query->orderBy('item_name')->skip($offset)->take($limit + 1)->get();
+
+                        return [
+                            'options' => $rows->take($limit)
+                                ->mapWithKeys(fn (Item $item): array => [
+                                    $item->getKey() => $this->itemOptionLabel($item),
+                                ])
+                                ->all(),
+                            'hasMore' => $rows->count() > $limit,
+                        ];
+                    })
+                    ->getOptionLabelUsing(function ($value): ?string {
+                        $item = Item::query()->with('baseUom')->find($value);
+
+                        return $item ? $this->itemOptionLabel($item) : null;
+                    })
                     ->placeholder('Pilih barang yang akan disusun')
                     ->live()
                     ->afterStateUpdated(function (?string $state): void {
@@ -1442,21 +1468,75 @@ class BomBuilder extends Page implements HasTable
     private function templateSchema(): array
     {
         return [
-            Select::make('source_item_id')
+            InfiniteSelect::make('source_item_id')
                 ->label('Barang template')
-                ->options(fn (): array => $this->templateItemOptions())
-                ->searchable()
+                ->getPaginatedOptionsUsing(function (int $offset, int $limit, ?string $search): array {
+                    $query = Item::query()
+                        ->whereHas('components')
+                        ->when(filled($search), fn (Builder $query): Builder => $query->where(
+                            fn (Builder $query): Builder => $query
+                                ->where('item_code', 'like', "%{$search}%")
+                                ->orWhere('item_name', 'like', "%{$search}%"),
+                        ))
+                        ->withCount('components')
+                        ->with('baseUom');
+
+                    $rows = $query->orderBy('item_name')->skip($offset)->take($limit + 1)->get();
+
+                    return [
+                        'options' => $rows->take($limit)
+                            ->mapWithKeys(fn (Item $item): array => [
+                                $item->getKey() => $this->templateItemOptionLabel($item),
+                            ])
+                            ->all(),
+                        'hasMore' => $rows->count() > $limit,
+                    ];
+                })
+                ->getOptionLabelUsing(function ($value): ?string {
+                    $item = Item::query()->withCount('components')->with('baseUom')->find($value);
+
+                    return $item ? $this->templateItemOptionLabel($item) : null;
+                })
                 ->required()
                 ->helperText('Hanya barang yang sudah memiliki komposisi yang bisa dipakai sebagai template.'),
-            Select::make('target_item_id')
+            InfiniteSelect::make('target_item_id')
                 ->label('Barang tujuan')
-                ->options(fn (Get $get): array => $this->itemOptions(excludeId: $get('source_item_id')))
-                ->searchable()
+                ->getPaginatedOptionsUsing(function (int $offset, int $limit, ?string $search, Get $get): array {
+                    $excludeId = $get('source_item_id');
+
+                    $query = Item::query()
+                        ->where('is_stockable', true)
+                        ->where('has_variants', false)
+                        ->when(filled($excludeId), fn (Builder $query): Builder => $query->whereKeyNot($excludeId))
+                        ->when(filled($search), fn (Builder $query): Builder => $query->where(
+                            fn (Builder $query): Builder => $query
+                                ->where('item_code', 'like', "%{$search}%")
+                                ->orWhere('item_name', 'like', "%{$search}%"),
+                        ))
+                        ->with('baseUom');
+
+                    $rows = $query->orderBy('item_name')->skip($offset)->take($limit + 1)->get();
+
+                    return [
+                        'options' => $rows->take($limit)
+                            ->mapWithKeys(fn (Item $item): array => [
+                                $item->getKey() => $this->itemOptionLabel($item),
+                            ])
+                            ->all(),
+                        'hasMore' => $rows->count() > $limit,
+                    ];
+                })
+                ->getOptionLabelUsing(function ($value): ?string {
+                    $item = Item::query()->with('baseUom')->find($value);
+
+                    return $item ? $this->itemOptionLabel($item) : null;
+                })
                 ->required()
-                ->rules(['different:source_item_id'])
-                ->validationMessages([
-                    'different' => 'Barang tujuan tidak boleh sama dengan barang template.',
-                ])
+                ->rule(fn (Get $get): Closure => function (string $attribute, mixed $value, Closure $fail) use ($get): void {
+                    if (filled($value) && (string) $value === (string) $get('source_item_id')) {
+                        $fail('Barang tujuan tidak boleh sama dengan barang template.');
+                    }
+                })
                 ->helperText(function (Get $get): string {
                     $targetId = $get('target_item_id');
 
@@ -1486,43 +1566,16 @@ class BomBuilder extends Page implements HasTable
         return $currentParentId;
     }
 
-    /**
-     * @return array<string, string>
-     */
-    private function templateItemOptions(): array
+    private function itemOptionLabel(Item $item): string
     {
-        return Item::query()
-            ->whereHas('components')
-            ->withCount('components')
-            ->with('baseUom')
-            ->orderBy('item_name')
-            ->get()
-            ->mapWithKeys(function (Item $item): array {
-                $uom = $item->baseUom?->code;
+        $uom = $item->baseUom?->code;
 
-                return [$item->getKey() => "{$item->item_code} — {$item->item_name}".($uom ? " ({$uom})" : '')." · {$item->components_count} komponen"];
-            })
-            ->all();
+        return "{$item->item_code} — {$item->item_name}".($uom ? " ({$uom})" : '');
     }
 
-    /**
-     * @return array<string, string>
-     */
-    private function itemOptions(?string $excludeId = null): array
+    private function templateItemOptionLabel(Item $item): string
     {
-        return Item::query()
-            ->where('is_stockable', true)
-            ->where('has_variants', false)
-            ->when(filled($excludeId), fn ($query) => $query->whereKeyNot($excludeId))
-            ->with('baseUom')
-            ->orderBy('item_name')
-            ->get()
-            ->mapWithKeys(function (Item $item): array {
-                $uom = $item->baseUom?->code;
-
-                return [$item->getKey() => "{$item->item_code} — {$item->item_name}".($uom ? " ({$uom})" : '')];
-            })
-            ->all();
+        return $this->itemOptionLabel($item)." · {$item->components_count} komponen";
     }
 
     /**

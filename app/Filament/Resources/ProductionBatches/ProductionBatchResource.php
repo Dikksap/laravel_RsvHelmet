@@ -170,7 +170,8 @@ class ProductionBatchResource extends Resource
                     DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->infinite(perPage: 50);
     }
 
     public static function getRelations(): array

@@ -2,11 +2,11 @@
 
 namespace App\Filament\Resources\ProductionBatches\Pages;
 
+use App\Filament\Resources\Pages\InfiniteScrollListRecords;
 use App\Filament\Resources\ProductionBatches\ProductionBatchResource;
 use Filament\Actions\CreateAction;
-use Filament\Resources\Pages\ListRecords;
 
-class ListProductionBatches extends ListRecords
+class ListProductionBatches extends InfiniteScrollListRecords
 {
     protected static string $resource = ProductionBatchResource::class;
 

@@ -16,6 +16,8 @@ use Filament\Navigation\NavigationGroup;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
+use Illuminate\Contracts\View\View;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -57,6 +59,10 @@ class AdminPanelProvider extends PanelProvider
                 BatchProgressTable::class,
                 RecentCompletedBatchesTable::class,
             ])
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn (): View => view('filament.partials.infinite-scroll-spa-fix'),
+            )
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

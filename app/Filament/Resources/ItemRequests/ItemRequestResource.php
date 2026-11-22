@@ -209,7 +209,8 @@ class ItemRequestResource extends Resource
                 self::rejectAction()
                     ->labeledFrom('md'),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->infinite(perPage: 50);
     }
 
     public static function approveAction(): Action

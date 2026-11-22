@@ -13,7 +13,6 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\ExportAction;
 use Filament\Actions\Exports\Enums\ExportFormat;
 use Filament\Actions\ImportAction;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -23,6 +22,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 
 class LinesRelationManager extends RelationManager
 {
@@ -147,17 +147,35 @@ class LinesRelationManager extends RelationManager
                     ->label('Tambah barang')
                     ->visible(fn (): bool => $this->getOwnerRecord()->isDraft())
                     ->schema([
-                        Select::make('item_id')
+                        InfiniteSelect::make('item_id')
                             ->label('Barang')
-                            ->options(fn (): array => Item::query()
-                                ->where('is_stockable', true)
-                                ->where('has_variants', false)
-                                ->whereNotIn('id', $this->getOwnerRecord()->lines()->select('item_id'))
-                                ->orderBy('item_name')
-                                ->get()
-                                ->mapWithKeys(fn (Item $item): array => [$item->id => "{$item->item_code} — {$item->item_name}"])
-                                ->all())
-                            ->searchable()
+                            ->getPaginatedOptionsUsing(function (int $offset, int $limit, ?string $search): array {
+                                $query = Item::query()
+                                    ->where('is_stockable', true)
+                                    ->where('has_variants', false)
+                                    ->whereNotIn('id', $this->getOwnerRecord()->lines()->select('item_id'))
+                                    ->when(filled($search), fn (Builder $query): Builder => $query->where(
+                                        fn (Builder $query): Builder => $query
+                                            ->where('item_code', 'like', "%{$search}%")
+                                            ->orWhere('item_name', 'like', "%{$search}%"),
+                                    ));
+
+                                $rows = $query->orderBy('item_name')->skip($offset)->take($limit + 1)->get();
+
+                                return [
+                                    'options' => $rows->take($limit)
+                                        ->mapWithKeys(fn (Item $item): array => [
+                                            $item->getKey() => "{$item->item_code} — {$item->item_name}",
+                                        ])
+                                        ->all(),
+                                    'hasMore' => $rows->count() > $limit,
+                                ];
+                            })
+                            ->getOptionLabelUsing(function ($value): ?string {
+                                $item = Item::query()->find($value);
+
+                                return $item ? "{$item->item_code} — {$item->item_name}" : null;
+                            })
                             ->required()
                             ->helperText('Barang di luar snapshot awal opname.'),
                         Textarea::make('note')

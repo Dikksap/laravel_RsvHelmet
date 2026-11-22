@@ -1,4 +1,3 @@
-opencode
 <?php
 
 namespace App\Filament\Resources\InventoryBalances\Pages;

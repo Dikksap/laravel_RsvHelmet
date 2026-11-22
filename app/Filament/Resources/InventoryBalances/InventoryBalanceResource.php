@@ -37,6 +37,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Number;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 use UnitEnum;
 
 class InventoryBalanceResource extends Resource
@@ -85,19 +86,35 @@ class InventoryBalanceResource extends Resource
                             ->required()
                             ->searchable()
                             ->preload(),
-                        Select::make('item_id')
+                        InfiniteSelect::make('item_id')
                             ->label('Barang')
-                            ->relationship(
-                                name: 'item',
-                                titleAttribute: 'item_name',
-                                modifyQueryUsing: fn (Builder $query): Builder => $query
+                            ->getPaginatedOptionsUsing(function (int $offset, int $limit, ?string $search): array {
+                                $query = Item::query()
                                     ->where('is_stockable', true)
-                                    ->where('has_variants', false),
-                            )
-                            ->getOptionLabelFromRecordUsing(fn (Item $record): string => "{$record->item_code} — {$record->item_name}")
+                                    ->where('has_variants', false)
+                                    ->when(filled($search), fn (Builder $query): Builder => $query->where(
+                                        fn (Builder $query): Builder => $query
+                                            ->where('item_code', 'like', "%{$search}%")
+                                            ->orWhere('item_name', 'like', "%{$search}%"),
+                                    ));
+
+                                $rows = $query->orderBy('item_name')->skip($offset)->take($limit + 1)->get();
+
+                                return [
+                                    'options' => $rows->take($limit)
+                                        ->mapWithKeys(fn (Item $item): array => [
+                                            $item->getKey() => "{$item->item_code} — {$item->item_name}",
+                                        ])
+                                        ->all(),
+                                    'hasMore' => $rows->count() > $limit,
+                                ];
+                            })
+                            ->getOptionLabelUsing(function ($value): ?string {
+                                $item = Item::query()->find($value);
+
+                                return $item ? "{$item->item_code} — {$item->item_name}" : null;
+                            })
                             ->required()
-                            ->searchable(['item_code', 'item_name'])
-                            ->preload()
                             ->rule(fn (Get $get, ?InventoryBalance $record) => Rule::unique('inventory_balances', 'item_id')
                                 ->where('warehouse_id', $get('warehouse_id'))
                                 ->ignore($record?->getKey()))
@@ -207,7 +224,8 @@ class InventoryBalanceResource extends Resource
                     DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('warehouse_id');
+            ->defaultSort('warehouse_id')
+            ->infinite(perPage: 50);
     }
 
     private static function transferBulkAction(): BulkAction

@@ -102,7 +102,8 @@ class ItemCategoryResource extends Resource
                     DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('name');
+            ->defaultSort('name')
+            ->infinite(perPage: 50);
     }
 
     public static function getPages(): array

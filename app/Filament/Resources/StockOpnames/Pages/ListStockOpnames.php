@@ -2,11 +2,11 @@
 
 namespace App\Filament\Resources\StockOpnames\Pages;
 
+use App\Filament\Resources\Pages\InfiniteScrollListRecords;
 use App\Filament\Resources\StockOpnames\StockOpnameResource;
 use Filament\Actions\CreateAction;
-use Filament\Resources\Pages\ListRecords;
 
-class ListStockOpnames extends ListRecords
+class ListStockOpnames extends InfiniteScrollListRecords
 {
     protected static string $resource = StockOpnameResource::class;
 

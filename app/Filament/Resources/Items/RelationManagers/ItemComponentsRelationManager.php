@@ -8,7 +8,6 @@ use Closure;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -17,7 +16,9 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
+use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 
 class ItemComponentsRelationManager extends RelationManager
 {
@@ -29,17 +30,35 @@ class ItemComponentsRelationManager extends RelationManager
     {
         return $schema
             ->components([
-                Select::make('component_item_id')
+                InfiniteSelect::make('component_item_id')
                     ->label('Barang komponen')
-                    ->options(fn (): array => Item::query()
-                        ->where('is_stockable', true)
-                        ->where('has_variants', false)
-                        ->whereKeyNot($this->getOwnerRecord()->getKey())
-                        ->orderBy('item_name')
-                        ->get()
-                        ->mapWithKeys(fn (Item $item): array => [$item->id => "{$item->item_code} — {$item->item_name}"])
-                        ->all())
-                    ->searchable()
+                    ->getPaginatedOptionsUsing(function (int $offset, int $limit, ?string $search): array {
+                        $query = Item::query()
+                            ->where('is_stockable', true)
+                            ->where('has_variants', false)
+                            ->whereKeyNot($this->getOwnerRecord()->getKey())
+                            ->when(filled($search), fn (Builder $query): Builder => $query->where(
+                                fn (Builder $query): Builder => $query
+                                    ->where('item_code', 'like', "%{$search}%")
+                                    ->orWhere('item_name', 'like', "%{$search}%"),
+                            ));
+
+                        $rows = $query->orderBy('item_name')->skip($offset)->take($limit + 1)->get();
+
+                        return [
+                            'options' => $rows->take($limit)
+                                ->mapWithKeys(fn (Item $item): array => [
+                                    $item->getKey() => "{$item->item_code} — {$item->item_name}",
+                                ])
+                                ->all(),
+                            'hasMore' => $rows->count() > $limit,
+                        ];
+                    })
+                    ->getOptionLabelUsing(function ($value): ?string {
+                        $item = Item::query()->find($value);
+
+                        return $item ? "{$item->item_code} — {$item->item_name}" : null;
+                    })
                     ->required()
                     ->rule(fn (?ItemComponent $record) => Rule::unique('item_components', 'component_item_id')
                         ->where('parent_item_id', $this->getOwnerRecord()->getKey())

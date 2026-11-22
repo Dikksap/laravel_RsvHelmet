@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\ItemRequests\RelationManagers;
 
+use App\Models\Item;
 use Filament\Actions\EditAction;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\IconColumn;
@@ -11,6 +11,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 
 class LinesRelationManager extends RelationManager
 {
@@ -65,11 +66,26 @@ class LinesRelationManager extends RelationManager
                         TextInput::make('requested_item_name')
                             ->label('Nama permintaan manual')
                             ->disabled(),
-                        Select::make('item_id')
+                        InfiniteSelect::make('item_id')
                             ->label('Barang')
-                            ->relationship('item', 'item_name')
-                            ->searchable()
-                            ->preload()
+                            ->getPaginatedOptionsUsing(function (int $offset, int $limit, ?string $search): array {
+                                $query = Item::query()
+                                    ->when(filled($search), fn (Builder $query): Builder => $query->where(
+                                        fn (Builder $query): Builder => $query
+                                            ->where('item_code', 'like', "%{$search}%")
+                                            ->orWhere('item_name', 'like', "%{$search}%"),
+                                    ));
+
+                                $rows = $query->orderBy('item_name')->skip($offset)->take($limit + 1)->get();
+
+                                return [
+                                    'options' => $rows->take($limit)
+                                        ->mapWithKeys(fn (Item $item): array => [$item->getKey() => $item->item_name])
+                                        ->all(),
+                                    'hasMore' => $rows->count() > $limit,
+                                ];
+                            })
+                            ->getOptionLabelUsing(fn ($value): ?string => Item::query()->find($value)?->item_name)
                             ->required(),
                     ]),
             ])

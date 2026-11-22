@@ -173,7 +173,8 @@ class StockOpnameResource extends Resource
             ])
             ->defaultSort('created_at', 'desc')
             ->emptyStateHeading('Belum ada stok opname')
-            ->emptyStateDescription('Buat stok opname untuk mulai menghitung stok fisik per gudang.');
+            ->emptyStateDescription('Buat stok opname untuk mulai menghitung stok fisik per gudang.')
+            ->infinite(perPage: 50);
     }
 
     public static function statusColor(string $status): string

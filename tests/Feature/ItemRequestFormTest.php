@@ -46,7 +46,17 @@ class ItemRequestFormTest extends TestCase
             ])
             ->call('submit')
             ->assertHasNoErrors()
-            ->assertSet('submitted', true);
+            ->assertSet('submitted', true)
+            ->assertSee('Budi Santoso')
+            ->assertSee('Produksi')
+            ->assertSee('Helmet Full Face')
+            ->assertSee($firstItem->baseUom->code)
+            ->assertSee('Bagikan ke WhatsApp')
+            ->assertSee('Unduh PDF')
+            ->call('createAnother')
+            ->assertSet('submitted', false)
+            ->assertSet('submittedId', null)
+            ->assertDontSee('Bagikan ke WhatsApp');
 
         $itemRequest = ItemRequest::query()->sole();
 

@@ -108,7 +108,8 @@ class WarehouseResource extends Resource
                     DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('code');
+            ->defaultSort('code')
+            ->infinite(perPage: 50);
     }
 
     public static function getRelations(): array

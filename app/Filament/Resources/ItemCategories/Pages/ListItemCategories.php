@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\ItemCategories\Pages;
 
 use App\Filament\Resources\ItemCategories\ItemCategoryResource;
+use App\Filament\Resources\Pages\InfiniteScrollListRecords;
 use Filament\Actions\CreateAction;
-use Filament\Resources\Pages\ListRecords;
 
-class ListItemCategories extends ListRecords
+class ListItemCategories extends InfiniteScrollListRecords
 {
     protected static string $resource = ItemCategoryResource::class;
 
