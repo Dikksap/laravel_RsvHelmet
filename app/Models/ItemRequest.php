@@ -34,6 +34,8 @@ class ItemRequest extends Model
 
     public const STATUS_COMPLETED = 'completed';
 
+    public const STATUS_PARTIAL = 'partial';
+
     public const STATUS_REJECTED = 'rejected';
 
     /**
@@ -65,6 +67,7 @@ class ItemRequest extends Model
             self::STATUS_PENDING => 'Baru',
             self::STATUS_PROCESSING => 'Diproses',
             self::STATUS_COMPLETED => 'Selesai',
+            self::STATUS_PARTIAL => 'Disetujui sebagian',
             self::STATUS_REJECTED => 'Ditolak',
         ];
     }
@@ -112,6 +115,11 @@ class ItemRequest extends Model
     public function isCompleted(): bool
     {
         return $this->status === self::STATUS_COMPLETED;
+    }
+
+    public function isPartiallyApproved(): bool
+    {
+        return $this->status === self::STATUS_PARTIAL;
     }
 
     public function isRejected(): bool

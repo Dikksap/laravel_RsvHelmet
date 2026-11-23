@@ -61,7 +61,7 @@ class ItemRequestApprovalTest extends TestCase
         ]);
 
         $itemRequest = ItemRequest::factory()->create(['status' => ItemRequest::STATUS_PENDING]);
-        ItemRequestLine::factory()->create([
+        $line = ItemRequestLine::factory()->create([
             'item_request_id' => $itemRequest->getKey(),
             'item_id' => $item->getKey(),
             'quantity' => 3,
@@ -74,12 +74,16 @@ class ItemRequestApprovalTest extends TestCase
             ->assertHasNoActionErrors();
 
         $itemRequest->refresh();
+        $line->refresh();
 
         $this->assertSame(ItemRequest::STATUS_COMPLETED, $itemRequest->status);
         $this->assertSame($origin->getKey(), $itemRequest->warehouse_id);
         $this->assertSame($destination->getKey(), $itemRequest->destination_warehouse_id);
         $this->assertSame($user->getKey(), $itemRequest->approved_by);
         $this->assertNotNull($itemRequest->approved_at);
+
+        $this->assertSame(ItemRequestLine::APPROVAL_APPROVED, $line->approval_status);
+        $this->assertSame(3.0, (float) $line->approved_quantity);
 
         $this->assertSame(7.0, (float) InventoryBalance::query()
             ->where('warehouse_id', $origin->getKey())
@@ -103,6 +107,320 @@ class ItemRequestApprovalTest extends TestCase
         $this->assertSame($itemRequest->code, $movements->first()->reference);
     }
 
+    public function test_admin_can_approve_selected_items_with_custom_quantities(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $origin = Warehouse::factory()->create();
+        $destination = Warehouse::factory()->create();
+        $approvedItem = Item::factory()->create();
+        $rejectedItem = Item::factory()->create();
+
+        ItemRequestSetting::current()->update([
+            'warehouse_id' => $origin->getKey(),
+            'destination_warehouse_id' => $destination->getKey(),
+        ]);
+
+        foreach ([$approvedItem, $rejectedItem] as $item) {
+            InventoryBalance::factory()->create([
+                'warehouse_id' => $origin->getKey(),
+                'item_id' => $item->getKey(),
+                'quantity_on_hand' => 10,
+            ]);
+        }
+
+        $itemRequest = ItemRequest::factory()->create(['status' => ItemRequest::STATUS_PENDING]);
+
+        $approvedLine = ItemRequestLine::factory()->create([
+            'item_request_id' => $itemRequest->getKey(),
+            'item_id' => $approvedItem->getKey(),
+            'quantity' => 3,
+        ]);
+
+        $rejectedLine = ItemRequestLine::factory()->create([
+            'item_request_id' => $itemRequest->getKey(),
+            'item_id' => $rejectedItem->getKey(),
+            'quantity' => 5,
+        ]);
+
+        Livewire::test(EditItemRequest::class, ['record' => $itemRequest->getRouteKey()])
+            ->callAction('approve', data: [
+                'lines' => [
+                    [
+                        'line_id' => $approvedLine->getKey(),
+                        'approved' => true,
+                        'quantity' => 2,
+                    ],
+                    [
+                        'line_id' => $rejectedLine->getKey(),
+                        'approved' => false,
+                        'rejection_note' => 'Stok dialokasikan untuk kebutuhan lain.',
+                    ],
+                ],
+            ])
+            ->assertHasNoActionErrors();
+
+        $itemRequest->refresh();
+        $approvedLine->refresh();
+        $rejectedLine->refresh();
+
+        $this->assertSame(ItemRequest::STATUS_PARTIAL, $itemRequest->status);
+        $this->assertSame($user->getKey(), $itemRequest->approved_by);
+        $this->assertNotNull($itemRequest->approved_at);
+        $this->assertNull($itemRequest->rejected_at);
+
+        $this->assertSame(ItemRequestLine::APPROVAL_APPROVED, $approvedLine->approval_status);
+        $this->assertSame(2.0, (float) $approvedLine->approved_quantity);
+        $this->assertNull($approvedLine->rejection_note);
+
+        $this->assertSame(ItemRequestLine::APPROVAL_REJECTED, $rejectedLine->approval_status);
+        $this->assertNull($rejectedLine->approved_quantity);
+        $this->assertSame('Stok dialokasikan untuk kebutuhan lain.', $rejectedLine->rejection_note);
+
+        $this->assertSame(8.0, (float) InventoryBalance::query()
+            ->where('warehouse_id', $origin->getKey())
+            ->where('item_id', $approvedItem->getKey())
+            ->value('quantity_on_hand'));
+
+        $this->assertSame(2.0, (float) InventoryBalance::query()
+            ->where('warehouse_id', $destination->getKey())
+            ->where('item_id', $approvedItem->getKey())
+            ->value('quantity_on_hand'));
+
+        $this->assertSame(10.0, (float) InventoryBalance::query()
+            ->where('warehouse_id', $origin->getKey())
+            ->where('item_id', $rejectedItem->getKey())
+            ->value('quantity_on_hand'));
+
+        $this->assertNull(InventoryBalance::query()
+            ->where('warehouse_id', $destination->getKey())
+            ->where('item_id', $rejectedItem->getKey())
+            ->value('quantity_on_hand'));
+
+        $this->assertSame(2, InventoryMovement::query()
+            ->where('item_request_id', $itemRequest->getKey())
+            ->where('item_id', $approvedItem->getKey())
+            ->count());
+
+        $this->assertSame(0, InventoryMovement::query()
+            ->where('item_request_id', $itemRequest->getKey())
+            ->where('item_id', $rejectedItem->getKey())
+            ->count());
+    }
+
+    public function test_rejecting_every_item_from_the_approval_modal_rejects_the_request(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $origin = Warehouse::factory()->create();
+        $destination = Warehouse::factory()->create();
+        $item = Item::factory()->create();
+
+        ItemRequestSetting::current()->update([
+            'warehouse_id' => $origin->getKey(),
+            'destination_warehouse_id' => $destination->getKey(),
+        ]);
+
+        InventoryBalance::factory()->create([
+            'warehouse_id' => $origin->getKey(),
+            'item_id' => $item->getKey(),
+            'quantity_on_hand' => 10,
+        ]);
+
+        $itemRequest = ItemRequest::factory()->create(['status' => ItemRequest::STATUS_PENDING]);
+        $line = ItemRequestLine::factory()->create([
+            'item_request_id' => $itemRequest->getKey(),
+            'item_id' => $item->getKey(),
+            'quantity' => 3,
+        ]);
+
+        Livewire::test(EditItemRequest::class, ['record' => $itemRequest->getRouteKey()])
+            ->callAction('approve', data: [
+                'lines' => [
+                    [
+                        'line_id' => $line->getKey(),
+                        'approved' => false,
+                        'rejection_note' => 'Tidak ada anggaran untuk barang ini.',
+                    ],
+                ],
+            ])
+            ->assertHasNoActionErrors();
+
+        $itemRequest->refresh();
+        $line->refresh();
+
+        $this->assertSame(ItemRequest::STATUS_REJECTED, $itemRequest->status);
+        $this->assertSame($user->getKey(), $itemRequest->rejected_by);
+        $this->assertNotNull($itemRequest->rejected_at);
+        $this->assertSame('Tidak ada anggaran untuk barang ini.', $itemRequest->rejection_note);
+        $this->assertNull($itemRequest->approved_by);
+
+        $this->assertSame(ItemRequestLine::APPROVAL_REJECTED, $line->approval_status);
+        $this->assertNull($line->approved_quantity);
+
+        $this->assertSame(10.0, (float) InventoryBalance::query()
+            ->where('warehouse_id', $origin->getKey())
+            ->where('item_id', $item->getKey())
+            ->value('quantity_on_hand'));
+
+        $this->assertSame(0, InventoryMovement::query()->count());
+    }
+
+    public function test_unmapped_items_are_rejected_while_mapped_items_can_be_approved(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $origin = Warehouse::factory()->create();
+        $destination = Warehouse::factory()->create();
+        $item = Item::factory()->create();
+
+        ItemRequestSetting::current()->update([
+            'warehouse_id' => $origin->getKey(),
+            'destination_warehouse_id' => $destination->getKey(),
+        ]);
+
+        InventoryBalance::factory()->create([
+            'warehouse_id' => $origin->getKey(),
+            'item_id' => $item->getKey(),
+            'quantity_on_hand' => 10,
+        ]);
+
+        $itemRequest = ItemRequest::factory()->create(['status' => ItemRequest::STATUS_PENDING]);
+
+        $mappedLine = ItemRequestLine::factory()->create([
+            'item_request_id' => $itemRequest->getKey(),
+            'item_id' => $item->getKey(),
+            'quantity' => 4,
+        ]);
+
+        $unmappedLine = ItemRequestLine::factory()->create([
+            'item_request_id' => $itemRequest->getKey(),
+            'item_id' => null,
+            'requested_item_name' => 'Sarung tangan kulit',
+        ]);
+
+        Livewire::test(EditItemRequest::class, ['record' => $itemRequest->getRouteKey()])
+            ->callAction('approve')
+            ->assertHasNoActionErrors();
+
+        $itemRequest->refresh();
+        $mappedLine->refresh();
+        $unmappedLine->refresh();
+
+        $this->assertSame(ItemRequest::STATUS_PARTIAL, $itemRequest->status);
+        $this->assertSame(ItemRequestLine::APPROVAL_APPROVED, $mappedLine->approval_status);
+        $this->assertSame(4.0, (float) $mappedLine->approved_quantity);
+
+        $this->assertSame(ItemRequestLine::APPROVAL_REJECTED, $unmappedLine->approval_status);
+        $this->assertSame('Barang belum dipetakan.', $unmappedLine->rejection_note);
+
+        $this->assertSame(6.0, (float) InventoryBalance::query()
+            ->where('warehouse_id', $origin->getKey())
+            ->where('item_id', $item->getKey())
+            ->value('quantity_on_hand'));
+
+        $this->assertSame(2, InventoryMovement::query()
+            ->where('item_request_id', $itemRequest->getKey())
+            ->count());
+    }
+
+    public function test_admin_can_approve_less_than_requested_when_stock_is_insufficient(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $origin = Warehouse::factory()->create();
+        $destination = Warehouse::factory()->create();
+        $item = Item::factory()->create();
+
+        ItemRequestSetting::current()->update([
+            'warehouse_id' => $origin->getKey(),
+            'destination_warehouse_id' => $destination->getKey(),
+        ]);
+
+        InventoryBalance::factory()->create([
+            'warehouse_id' => $origin->getKey(),
+            'item_id' => $item->getKey(),
+            'quantity_on_hand' => 1,
+        ]);
+
+        $itemRequest = ItemRequest::factory()->create(['status' => ItemRequest::STATUS_PENDING]);
+        $line = ItemRequestLine::factory()->create([
+            'item_request_id' => $itemRequest->getKey(),
+            'item_id' => $item->getKey(),
+            'quantity' => 5,
+        ]);
+
+        Livewire::test(EditItemRequest::class, ['record' => $itemRequest->getRouteKey()])
+            ->callAction('approve')
+            ->assertHasNoActionErrors();
+
+        $itemRequest->refresh();
+        $line->refresh();
+
+        $this->assertSame(ItemRequest::STATUS_PARTIAL, $itemRequest->status);
+        $this->assertSame(ItemRequestLine::APPROVAL_APPROVED, $line->approval_status);
+        $this->assertSame(1.0, (float) $line->approved_quantity);
+
+        $this->assertSame(0.0, (float) InventoryBalance::query()
+            ->where('warehouse_id', $origin->getKey())
+            ->where('item_id', $item->getKey())
+            ->value('quantity_on_hand'));
+
+        $this->assertSame(1.0, (float) InventoryBalance::query()
+            ->where('warehouse_id', $destination->getKey())
+            ->where('item_id', $item->getKey())
+            ->value('quantity_on_hand'));
+
+        $this->assertSame(2, InventoryMovement::query()
+            ->where('item_request_id', $itemRequest->getKey())
+            ->count());
+    }
+
+    public function test_approved_quantity_cannot_exceed_the_requested_quantity(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $origin = Warehouse::factory()->create();
+        $destination = Warehouse::factory()->create();
+        $item = Item::factory()->create();
+
+        ItemRequestSetting::current()->update([
+            'warehouse_id' => $origin->getKey(),
+            'destination_warehouse_id' => $destination->getKey(),
+        ]);
+
+        InventoryBalance::factory()->create([
+            'warehouse_id' => $origin->getKey(),
+            'item_id' => $item->getKey(),
+            'quantity_on_hand' => 10,
+        ]);
+
+        $itemRequest = ItemRequest::factory()->create(['status' => ItemRequest::STATUS_PENDING]);
+        $line = ItemRequestLine::factory()->create([
+            'item_request_id' => $itemRequest->getKey(),
+            'item_id' => $item->getKey(),
+            'quantity' => 2,
+        ]);
+
+        Livewire::test(EditItemRequest::class, ['record' => $itemRequest->getRouteKey()])
+            ->callAction('approve', data: [
+                'lines' => [
+                    [
+                        'line_id' => $line->getKey(),
+                        'approved' => true,
+                        'quantity' => 5,
+                    ],
+                ],
+            ])
+            ->assertNotified('Permintaan gagal diproses');
+
+        $this->assertSame(ItemRequest::STATUS_PENDING, $itemRequest->fresh()->status);
+        $this->assertSame(ItemRequestLine::APPROVAL_PENDING, $line->fresh()->approval_status);
+        $this->assertSame(0, InventoryMovement::query()->count());
+    }
+
     public function test_approval_fails_when_default_warehouses_are_not_configured(): void
     {
         $this->actingAs(User::factory()->create());
@@ -116,33 +434,6 @@ class ItemRequestApprovalTest extends TestCase
 
         Livewire::test(EditItemRequest::class, ['record' => $itemRequest->getRouteKey()])
             ->assertActionDisabled('approve');
-    }
-
-    public function test_approval_requires_all_lines_to_be_mapped(): void
-    {
-        $this->actingAs(User::factory()->create());
-
-        $origin = Warehouse::factory()->create();
-        $destination = Warehouse::factory()->create();
-
-        ItemRequestSetting::current()->update([
-            'warehouse_id' => $origin->getKey(),
-            'destination_warehouse_id' => $destination->getKey(),
-        ]);
-
-        $itemRequest = ItemRequest::factory()->create(['status' => ItemRequest::STATUS_PENDING]);
-        ItemRequestLine::factory()->create([
-            'item_request_id' => $itemRequest->getKey(),
-            'item_id' => null,
-            'requested_item_name' => 'Sarung tangan kulit',
-        ]);
-
-        Livewire::test(EditItemRequest::class, ['record' => $itemRequest->getRouteKey()])
-            ->callAction('approve')
-            ->assertNotified('Permintaan gagal disetujui');
-
-        $this->assertSame(ItemRequest::STATUS_PENDING, $itemRequest->fresh()->status);
-        $this->assertSame(0, InventoryMovement::query()->count());
     }
 
     public function test_approval_rejects_the_same_origin_and_destination_warehouse(): void
@@ -172,41 +463,7 @@ class ItemRequestApprovalTest extends TestCase
 
         Livewire::test(EditItemRequest::class, ['record' => $itemRequest->getRouteKey()])
             ->callAction('approve')
-            ->assertNotified('Permintaan gagal disetujui');
-
-        $this->assertSame(ItemRequest::STATUS_PENDING, $itemRequest->fresh()->status);
-        $this->assertSame(0, InventoryMovement::query()->count());
-    }
-
-    public function test_approval_fails_when_origin_stock_is_insufficient(): void
-    {
-        $this->actingAs(User::factory()->create());
-
-        $origin = Warehouse::factory()->create();
-        $destination = Warehouse::factory()->create();
-        $item = Item::factory()->create();
-
-        ItemRequestSetting::current()->update([
-            'warehouse_id' => $origin->getKey(),
-            'destination_warehouse_id' => $destination->getKey(),
-        ]);
-
-        InventoryBalance::factory()->create([
-            'warehouse_id' => $origin->getKey(),
-            'item_id' => $item->getKey(),
-            'quantity_on_hand' => 1,
-        ]);
-
-        $itemRequest = ItemRequest::factory()->create(['status' => ItemRequest::STATUS_PENDING]);
-        ItemRequestLine::factory()->create([
-            'item_request_id' => $itemRequest->getKey(),
-            'item_id' => $item->getKey(),
-            'quantity' => 5,
-        ]);
-
-        Livewire::test(EditItemRequest::class, ['record' => $itemRequest->getRouteKey()])
-            ->callAction('approve')
-            ->assertNotified('Permintaan gagal disetujui');
+            ->assertNotified('Permintaan gagal diproses');
 
         $this->assertSame(ItemRequest::STATUS_PENDING, $itemRequest->fresh()->status);
         $this->assertSame(0, InventoryMovement::query()->count());
@@ -227,7 +484,7 @@ class ItemRequestApprovalTest extends TestCase
         ]);
 
         $itemRequest = ItemRequest::factory()->create(['status' => ItemRequest::STATUS_PENDING]);
-        ItemRequestLine::factory()->create([
+        $line = ItemRequestLine::factory()->create([
             'item_request_id' => $itemRequest->getKey(),
             'item_id' => $item->getKey(),
             'quantity' => 2,
@@ -240,11 +497,16 @@ class ItemRequestApprovalTest extends TestCase
             ->assertHasNoActionErrors();
 
         $itemRequest->refresh();
+        $line->refresh();
 
         $this->assertSame(ItemRequest::STATUS_REJECTED, $itemRequest->status);
         $this->assertSame($user->getKey(), $itemRequest->rejected_by);
         $this->assertNotNull($itemRequest->rejected_at);
         $this->assertSame('Stok dialokasikan untuk kebutuhan lain.', $itemRequest->rejection_note);
+
+        $this->assertSame(ItemRequestLine::APPROVAL_REJECTED, $line->approval_status);
+        $this->assertNull($line->approved_quantity);
+        $this->assertSame('Stok dialokasikan untuk kebutuhan lain.', $line->rejection_note);
 
         $this->assertSame(10.0, (float) InventoryBalance::query()
             ->where('warehouse_id', $warehouse->getKey())

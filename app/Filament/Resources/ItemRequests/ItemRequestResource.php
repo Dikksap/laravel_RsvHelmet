@@ -14,18 +14,23 @@ use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Support\HtmlString;
 use Illuminate\Support\Number;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
@@ -165,6 +170,7 @@ class ItemRequestResource extends Resource
                         ItemRequest::STATUS_PENDING => 'warning',
                         ItemRequest::STATUS_PROCESSING => 'info',
                         ItemRequest::STATUS_COMPLETED => 'success',
+                        ItemRequest::STATUS_PARTIAL => 'info',
                         ItemRequest::STATUS_REJECTED => 'danger',
                         default => 'gray',
                     }),
@@ -225,9 +231,13 @@ class ItemRequestResource extends Resource
                 ? null
                 : 'Atur gudang asal dan tujuan di menu Pengaturan Permintaan terlebih dahulu.')
             ->modalHeading('Setujui permintaan barang')
-            ->modalDescription('Stok barang yang diminta akan dipindahkan sesuai pengaturan gudang, lalu permintaan ditandai selesai.')
-            ->modalSubmitActionLabel('Setujui & pindahkan')
-            ->schema(function (ItemRequest $record): array {
+            ->modalDescription('Tentukan barang mana yang disetujui beserta jumlahnya. Barang yang tidak dicentang akan ditolak.')
+            ->modalSubmitActionLabel('Simpan keputusan')
+            ->modalWidth(Width::FiveExtraLarge)
+            ->fillForm(fn (ItemRequest $record): array => [
+                'lines' => self::approvalLineDefaults($record),
+            ])
+            ->schema(function (): array {
                 $settings = self::settings();
 
                 return [
@@ -245,10 +255,54 @@ class ItemRequestResource extends Resource
                                 ->rows(2)
                                 ->columnSpanFull(),
                         ]),
-                    TextEntry::make('approval_summary')
-                        ->hiddenLabel()
-                        ->state(self::approvalSummary($record, $settings?->warehouse_id))
-                        ->columnSpanFull(),
+                    Section::make('Keputusan per barang')
+                        ->description('Jumlah yang disetujui tidak boleh melebihi jumlah yang diminta. Stok barang yang disetujui dipindahkan dari gudang asal ke gudang tujuan.')
+                        ->schema([
+                            Repeater::make('lines')
+                                ->hiddenLabel()
+                                ->table([
+                                    TableColumn::make('Barang'),
+                                    TableColumn::make('Diminta'),
+                                    TableColumn::make('Stok asal'),
+                                    TableColumn::make('Setujui'),
+                                    TableColumn::make('Jumlah disetujui'),
+                                    TableColumn::make('Alasan penolakan'),
+                                ])
+                                ->schema([
+                                    Hidden::make('line_id'),
+                                    Hidden::make('requested_quantity'),
+                                    TextInput::make('item_label')
+                                        ->hiddenLabel()
+                                        ->disabled()
+                                        ->dehydrated(false),
+                                    TextInput::make('requested_display')
+                                        ->hiddenLabel()
+                                        ->disabled()
+                                        ->dehydrated(false),
+                                    TextInput::make('available_display')
+                                        ->hiddenLabel()
+                                        ->disabled()
+                                        ->dehydrated(false),
+                                    Toggle::make('approved')
+                                        ->hiddenLabel(),
+                                    TextInput::make('quantity')
+                                        ->hiddenLabel()
+                                        ->numeric()
+                                        ->minValue(0.001)
+                                        ->maxValue(fn (Get $get): ?float => filled($get('requested_quantity')) ? (float) $get('requested_quantity') : null)
+                                        ->required(fn (Get $get): bool => (bool) $get('approved'))
+                                        ->disabled(fn (Get $get): bool => ! (bool) $get('approved')),
+                                    TextInput::make('rejection_note')
+                                        ->hiddenLabel()
+                                        ->maxLength(255)
+                                        ->required(fn (Get $get): bool => ! (bool) $get('approved'))
+                                        ->disabled(fn (Get $get): bool => (bool) $get('approved')),
+                                ])
+                                ->addable(false)
+                                ->deletable(false)
+                                ->reorderable(false)
+                                ->columnSpanFull(),
+                        ]),
                 ];
             })
             ->action(function (ItemRequest $record, array $data, Action $action, Component $livewire): void {
@@ -257,7 +311,7 @@ class ItemRequestResource extends Resource
                 } catch (ValidationException $exception) {
                     Notification::make()
                         ->danger()
-                        ->title('Permintaan gagal disetujui')
+                        ->title('Permintaan gagal diproses')
                         ->body(collect($exception->errors())->flatten()->first())
                         ->persistent()
                         ->send();
@@ -278,8 +332,13 @@ class ItemRequestResource extends Resource
 
                 Notification::make()
                     ->success()
-                    ->title('Permintaan disetujui')
-                    ->body('Stok barang sudah dipindahkan antar gudang.')
+                    ->title('Keputusan persetujuan disimpan')
+                    ->body(match ($record->status) {
+                        ItemRequest::STATUS_COMPLETED => 'Semua barang disetujui dan stok sudah dipindahkan.',
+                        ItemRequest::STATUS_PARTIAL => 'Sebagian barang disetujui. Stok barang yang disetujui sudah dipindahkan.',
+                        ItemRequest::STATUS_REJECTED => 'Semua barang ditolak. Stok gudang tidak berubah.',
+                        default => 'Keputusan persetujuan sudah disimpan.',
+                    })
                     ->send();
             });
     }
@@ -344,13 +403,14 @@ class ItemRequestResource extends Resource
             ->exists();
     }
 
-    private static function approvalSummary(ItemRequest $record, int|string|null $warehouseId): HtmlString
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private static function approvalLineDefaults(ItemRequest $record): array
     {
         $record->loadMissing(['lines.item.baseUom']);
 
-        if ($record->lines->isEmpty()) {
-            return new HtmlString('<p class="text-sm text-gray-500">Permintaan ini tidak memiliki baris barang.</p>');
-        }
+        $warehouseId = self::settings()?->warehouse_id;
 
         $balances = blank($warehouseId)
             ? collect()
@@ -359,32 +419,34 @@ class ItemRequestResource extends Resource
                 ->whereIn('item_id', $record->lines->pluck('item_id')->filter()->all())
                 ->pluck('quantity_on_hand', 'item_id');
 
-        $rows = $record->lines
-            ->map(function (ItemRequestLine $line) use ($balances): string {
-                $quantity = (float) $line->quantity;
+        return $record->lines
+            ->sortBy('id')
+            ->map(function (ItemRequestLine $line) use ($balances): array {
+                $requested = (float) $line->quantity;
                 $available = blank($line->item_id) ? null : (float) ($balances[$line->item_id] ?? 0);
-                $isShort = $available !== null && $available < $quantity;
+                $canApprove = $available !== null && $available > 0;
 
-                return '<tr class="border-t border-gray-200 dark:border-white/10">'
-                    .'<td class="py-1 pr-3">'.e($line->item?->item_code ?? '—').'</td>'
-                    .'<td class="py-1 pr-3">'.e($line->item?->item_name ?? $line->requested_item_name ?? '—').'</td>'
-                    .'<td class="py-1 pr-3 text-right">'.Number::format($quantity, maxPrecision: 3, locale: app()->getLocale()).'</td>'
-                    .'<td class="py-1 text-right '.($isShort ? 'font-semibold text-danger-600 dark:text-danger-400' : '').'">'
-                    .($available === null ? 'Belum dipetakan' : Number::format($available, maxPrecision: 3, locale: app()->getLocale()))
-                    .'</td>'
-                    .'</tr>';
+                return [
+                    'line_id' => $line->getKey(),
+                    'item_label' => filled($line->item)
+                        ? $line->item->item_code.' — '.$line->item->item_name
+                        : ($line->requested_item_name ?? '—'),
+                    'requested_quantity' => $requested,
+                    'requested_display' => Number::format($requested, maxPrecision: 3, locale: app()->getLocale()),
+                    'available_display' => $available === null
+                        ? 'Belum dipetakan'
+                        : Number::format($available, maxPrecision: 3, locale: app()->getLocale()),
+                    'approved' => $canApprove,
+                    'quantity' => $canApprove ? min($requested, $available) : $requested,
+                    'rejection_note' => $canApprove
+                        ? null
+                        : ($available === null
+                            ? 'Barang belum dipetakan.'
+                            : 'Stok gudang asal tidak tersedia.'),
+                ];
             })
-            ->implode('');
-
-        return new HtmlString(
-            '<div class="overflow-x-auto"><table class="w-full text-sm">'
-            .'<thead><tr class="text-left text-xs uppercase text-gray-500 dark:text-gray-400">'
-            .'<th class="pb-1 pr-3 font-medium">Kode</th>'
-            .'<th class="pb-1 pr-3 font-medium">Barang</th>'
-            .'<th class="pb-1 pr-3 text-right font-medium">Diminta</th>'
-            .'<th class="pb-1 text-right font-medium">Stok asal</th>'
-            .'</tr></thead><tbody>'.$rows.'</tbody></table></div>'
-        );
+            ->values()
+            ->all();
     }
 
     /**

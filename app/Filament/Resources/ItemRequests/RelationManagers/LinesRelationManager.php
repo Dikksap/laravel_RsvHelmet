@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ItemRequests\RelationManagers;
 
 use App\Models\Item;
+use App\Models\ItemRequestLine;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -38,9 +39,26 @@ class LinesRelationManager extends RelationManager
                     ->label('Terpetakan')
                     ->boolean(),
                 TextColumn::make('quantity')
-                    ->label('Jumlah')
+                    ->label('Jumlah diminta')
                     ->numeric(maxDecimalPlaces: 3)
                     ->sortable(),
+                TextColumn::make('approval_status')
+                    ->label('Status')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state): string => ItemRequestLine::approvalStatusOptions()[$state] ?? $state)
+                    ->color(fn (string $state): string => match ($state) {
+                        ItemRequestLine::APPROVAL_APPROVED => 'success',
+                        ItemRequestLine::APPROVAL_REJECTED => 'danger',
+                        default => 'warning',
+                    }),
+                TextColumn::make('approved_quantity')
+                    ->label('Jumlah disetujui')
+                    ->numeric(maxDecimalPlaces: 3)
+                    ->placeholder('—'),
+                TextColumn::make('rejection_note')
+                    ->label('Alasan penolakan')
+                    ->placeholder('—')
+                    ->wrap(),
                 TextColumn::make('item.baseUom.code')
                     ->label('Satuan')
                     ->placeholder('—'),
