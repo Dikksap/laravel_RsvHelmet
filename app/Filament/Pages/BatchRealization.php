@@ -67,6 +67,7 @@ class BatchRealization extends Page implements HasTable
                     ->numeric(maxDecimalPlaces: 3),
                 TextColumn::make('actual_output')
                     ->label('Realisasi hasil')
+                    ->state(fn (ProductionBatch $record): float => (float) $record->actual_output)
                     ->numeric(maxDecimalPlaces: 3),
                 TextColumn::make('materials_count')
                     ->label('Jenis material'),

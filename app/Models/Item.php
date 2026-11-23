@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable([
     'parent_item_id',
@@ -110,6 +111,16 @@ class Item extends Model
     public function variantMappings(): HasMany
     {
         return $this->hasMany(ItemVariantMapping::class);
+    }
+
+    public function externalMapping(): HasOne
+    {
+        return $this->hasOne(ExternalItemMapping::class);
+    }
+
+    public function externalSyncedUnits(): HasMany
+    {
+        return $this->hasMany(ExternalSyncedBarang::class);
     }
 
     public function inventoryBalances(): HasMany

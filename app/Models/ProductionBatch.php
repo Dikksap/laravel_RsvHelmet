@@ -95,4 +95,22 @@ class ProductionBatch extends Model
     {
         return (float) $this->items->sum('quantity_planned');
     }
+
+    public function getActualOutputAttribute(): float
+    {
+        $value = $this->attributes['actual_output'] ?? null;
+        if ($value !== null && (float) $value > 0) {
+            return (float) $value;
+        }
+
+        $movementQty = (float) $this->movements()
+            ->where('type', InventoryMovement::TYPE_IN_PRODUCTION)
+            ->sum('quantity');
+
+        if ($movementQty > 0) {
+            return $movementQty;
+        }
+
+        return (float) $this->items->sum('actual_quantity');
+    }
 }

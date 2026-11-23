@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'external_barang' => [
+        'base_url' => env('EXTERNAL_BARANG_API_URL', 'http://host.docker.internal:8000'),
+        'timeout' => (int) env('EXTERNAL_BARANG_API_TIMEOUT', 15),
+        'excluded_statuses' => ['REGISTER'],
+        'default_warehouse_id' => env('EXTERNAL_BARANG_DEFAULT_WAREHOUSE_ID'),
+    ],
+
 ];

@@ -2,12 +2,15 @@
 
 namespace App\Filament\Resources\ProductionBatches\Pages;
 
+use App\Filament\Exports\ProductionBatchItemExporter;
+use App\Filament\Imports\ProductionBatchItemImporter;
 use App\Filament\Resources\ProductionBatches\ProductionBatchResource;
-use App\Models\InventoryMovement;
 use App\Models\ProductionBatch;
 use App\Services\BatchRequirementService;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
+use Filament\Actions\ExportAction;
+use Filament\Actions\ImportAction;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ViewRecord;
@@ -72,9 +75,7 @@ class ViewProductionBatch extends ViewRecord
                         TextEntry::make('actual_output')
                             ->label('Hasil produksi tercatat')
                             ->state(fn (ProductionBatch $record): string => Number::format(
-                                (float) $record->movements()
-                                    ->where('type', InventoryMovement::TYPE_IN_PRODUCTION)
-                                    ->sum('quantity'),
+                                (float) $record->actual_output,
                                 maxPrecision: 3,
                                 locale: app()->getLocale(),
                             )),
@@ -147,6 +148,18 @@ class ViewProductionBatch extends ViewRecord
                         ->send();
                 }),
             EditAction::make(),
+            ImportAction::make('import_batch_items')
+                ->importer(ProductionBatchItemImporter::class)
+                ->label('Impor produk')
+                ->options(fn (ProductionBatch $record): array => [
+                    'production_batch_id' => $record->getKey(),
+                ]),
+            ExportAction::make('export_batch_items')
+                ->exporter(ProductionBatchItemExporter::class)
+                ->label('Ekspor produk')
+                ->modifyQueryUsing(fn ($query, ProductionBatch $record) => $query->where(
+                    'production_batch_id', $record->getKey(),
+                )),
         ];
     }
 }

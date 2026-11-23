@@ -91,7 +91,8 @@ class BatchRealizationDetail extends Page
         return $this->batch->items
             ->map(function (ProductionBatchItem $item) use ($actualByItem): array {
                 $planned = (float) $item->quantity_planned;
-                $actual = (float) ($actualByItem->get($item->item_id) ?? 0);
+                $movementActual = (float) ($actualByItem->get($item->item_id) ?? 0);
+                $actual = $movementActual > 0 ? $movementActual : (float) $item->actual_quantity;
 
                 return [
                     'item' => $item->item,
