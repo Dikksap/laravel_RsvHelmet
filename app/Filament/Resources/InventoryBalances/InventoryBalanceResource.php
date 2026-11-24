@@ -56,21 +56,48 @@ class InventoryBalanceResource extends Resource
 
     protected static ?int $navigationSort = 20;
 
-    public static function getNavigationBadge(): ?string
-    {
-        $count = InventoryBalance::query()->lowStock()->count();
+    /**
+     * Stok per gudang dibuka lewat halaman WarehouseStock yang memilih gudang
+     * terlebih dahulu sebelum menampilkan daftar stok.
+     */
+    protected static bool $shouldRegisterNavigation = false;
 
-        return $count > 0 ? (string) $count : null;
+    public static function stockStatusColumn(): TextColumn
+    {
+        return TextColumn::make('stock_status')
+            ->label('Status')
+            ->badge()
+            ->formatStateUsing(fn (string $state): string => match ($state) {
+                'out' => 'Habis',
+                'low' => 'Menipis',
+                default => 'Aman',
+            })
+            ->color(fn (string $state): string => match ($state) {
+                'out' => 'danger',
+                'low' => 'warning',
+                default => 'success',
+            });
     }
 
-    public static function getNavigationBadgeColor(): string|array|null
+    public static function stockStatusFilter(): SelectFilter
     {
-        return 'warning';
-    }
-
-    public static function getNavigationBadgeTooltip(): ?string
-    {
-        return 'Jumlah baris stok yang sudah mencapai atau di bawah stok minimum.';
+        return SelectFilter::make('stock_status')
+            ->label('Status')
+            ->options([
+                'out' => 'Habis',
+                'low' => 'Menipis',
+                'ok' => 'Aman',
+            ])
+            ->query(function (Builder $query, array $data): Builder {
+                return match ($data['value'] ?? null) {
+                    'out' => $query->where('quantity_on_hand', '<=', 0),
+                    'low' => $query
+                        ->where('quantity_on_hand', '>', 0)
+                        ->whereColumn('quantity_on_hand', '<=', 'minimum_quantity'),
+                    'ok' => $query->whereColumn('quantity_on_hand', '>', 'minimum_quantity'),
+                    default => $query,
+                };
+            });
     }
 
     public static function form(Schema $schema): Schema
@@ -173,19 +200,7 @@ class InventoryBalanceResource extends Resource
                     ->label('Stok minimum')
                     ->numeric(maxDecimalPlaces: 3)
                     ->sortable(),
-                TextColumn::make('stock_status')
-                    ->label('Status')
-                    ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'out' => 'Habis',
-                        'low' => 'Menipis',
-                        default => 'Aman',
-                    })
-                    ->color(fn (string $state): string => match ($state) {
-                        'out' => 'danger',
-                        'low' => 'warning',
-                        default => 'success',
-                    }),
+                self::stockStatusColumn(),
                 TextColumn::make('last_counted_at')
                     ->label('Terakhir dihitung')
                     ->dateTime()
@@ -196,23 +211,7 @@ class InventoryBalanceResource extends Resource
                 SelectFilter::make('warehouse_id')
                     ->label('Gudang')
                     ->relationship('warehouse', 'name'),
-                SelectFilter::make('stock_status')
-                    ->label('Status')
-                    ->options([
-                        'out' => 'Habis',
-                        'low' => 'Menipis',
-                        'ok' => 'Aman',
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        return match ($data['value'] ?? null) {
-                            'out' => $query->where('quantity_on_hand', '<=', 0),
-                            'low' => $query
-                                ->where('quantity_on_hand', '>', 0)
-                                ->whereColumn('quantity_on_hand', '<=', 'minimum_quantity'),
-                            'ok' => $query->whereColumn('quantity_on_hand', '>', 'minimum_quantity'),
-                            default => $query,
-                        };
-                    }),
+                self::stockStatusFilter(),
             ])
             ->recordActions([
                 EditAction::make(),
@@ -228,7 +227,7 @@ class InventoryBalanceResource extends Resource
             ->infinite(perPage: 50);
     }
 
-    private static function transferBulkAction(): BulkAction
+    public static function transferBulkAction(): BulkAction
     {
         return BulkAction::make('transfer')
             ->label('Pindah gudang')
