@@ -48,13 +48,13 @@ class InventoryBalanceResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-cube';
 
-    protected static ?string $navigationLabel = 'Stok Gudang';
+    protected static ?string $navigationLabel = 'Stok per Gudang';
 
     protected static ?string $modelLabel = 'Stok Gudang';
 
     protected static ?string $pluralModelLabel = 'Stok Gudang';
 
-    protected static ?int $navigationSort = 10;
+    protected static ?int $navigationSort = 20;
 
     public static function getNavigationBadge(): ?string
     {

@@ -26,7 +26,7 @@ class StockCard extends Page implements HasTable
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-list';
 
-    protected static ?int $navigationSort = 30;
+    protected static ?int $navigationSort = 40;
 
     protected string $view = 'filament.pages.stock-card';
 

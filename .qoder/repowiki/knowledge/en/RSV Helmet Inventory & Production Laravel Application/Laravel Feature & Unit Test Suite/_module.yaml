@@ -7,4 +7,5 @@ source_files: []
 depends_on: []
 related_to:
     - path: business_domain
+    - path: filament_admin_ui/item_requests_resource
     - path: livewire_components

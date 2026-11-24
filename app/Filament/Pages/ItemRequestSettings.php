@@ -14,7 +14,7 @@ use UnitEnum;
 
 class ItemRequestSettings extends Page
 {
-    protected static string|UnitEnum|null $navigationGroup = 'Gudang';
+    protected static string|UnitEnum|null $navigationGroup = 'Permintaan Barang';
 
     protected static ?string $navigationLabel = 'Pengaturan Permintaan';
 
@@ -24,7 +24,7 @@ class ItemRequestSettings extends Page
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-cog-6-tooth';
 
-    protected static ?int $navigationSort = 18;
+    protected static ?int $navigationSort = 20;
 
     protected string $view = 'filament.pages.item-request-settings';
 

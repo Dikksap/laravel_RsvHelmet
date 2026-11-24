@@ -3,11 +3,11 @@ schema_version: 1
 locale: en-US
 branch: master
 nodes_managed: true
-exported_at: "2026-11-24T03:16:11Z"
+exported_at: "2026-11-24T06:31:15Z"
 modules:
     "":
-        dir_name: RSV Helmet — Laravel Inventory & Production Application
-        title: RSV Helmet — Laravel Inventory & Production Application
+        dir_name: RSV Helmet Inventory & Production Laravel Application
+        title: RSV Helmet Inventory & Production Laravel Application
         scope:
             - README.md
             - AGENTS.md
@@ -49,8 +49,8 @@ modules:
         children: []
         depends_on: []
         related_to:
+            - path: filament_admin_ui/external_sync_resources
             - path: filament_admin_ui/item_requests_resource
-            - path: http_layer
             - path: livewire_components
             - path: test_suite
     database_schema:
@@ -119,7 +119,8 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to: []
+        related_to:
+            - path: business_domain
     filament_admin_ui/filament_shared_assets:
         dir_name: Filament Admin UI Shared Assets
         title: Filament Admin UI Shared Assets
@@ -167,6 +168,7 @@ modules:
         depends_on: []
         related_to:
             - path: business_domain
+            - path: test_suite
     filament_admin_ui/production_resources:
         dir_name: Production Batches & Stock Opname Filament Resources
         title: Production Batches & Stock Opname Filament Resources
@@ -187,8 +189,7 @@ modules:
         source_files: []
         children: []
         depends_on: []
-        related_to:
-            - path: business_domain
+        related_to: []
     livewire_components:
         dir_name: Item Request Form Livewire Component
         title: Item Request Form Livewire Component
@@ -211,4 +212,5 @@ modules:
         depends_on: []
         related_to:
             - path: business_domain
+            - path: filament_admin_ui/item_requests_resource
             - path: livewire_components

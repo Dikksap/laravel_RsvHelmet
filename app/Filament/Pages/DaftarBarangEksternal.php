@@ -6,6 +6,7 @@ use App\Filament\Forms\Components\InfiniteSelect;
 use App\Models\ExternalItemMapping;
 use App\Models\ExternalSyncedBarang;
 use App\Models\Item;
+use App\Models\ProductionBatch;
 use App\Models\Warehouse;
 use App\Services\ExternalBarangApiService;
 use App\Services\ExternalBarangSyncService;
@@ -21,6 +22,7 @@ use Filament\Forms\Contracts\HasForms;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
@@ -29,7 +31,7 @@ class DaftarBarangEksternal extends Page implements HasForms
 {
     use InteractsWithForms;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Gudang';
+    protected static string|UnitEnum|null $navigationGroup = 'Integrasi Eksternal';
 
     protected static ?string $navigationLabel = 'Barang Eksternal per Tanggal';
 
@@ -39,7 +41,7 @@ class DaftarBarangEksternal extends Page implements HasForms
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-calendar-days';
 
-    protected static ?int $navigationSort = 32;
+    protected static ?int $navigationSort = 10;
 
     protected string $view = 'filament.pages.daftar-barang-eksternal';
 
@@ -264,6 +266,28 @@ class DaftarBarangEksternal extends Page implements HasForms
                 ->icon('heroicon-o-arrow-path')
                 ->color('primary')
                 ->form([
+                    Select::make('production_batch_id')
+                        ->label('Batch Produksi')
+                        ->options(fn (): array => ProductionBatch::query()
+                            ->where('status', '!=', ProductionBatch::STATUS_CANCELLED)
+                            ->orderByDesc('created_at')
+                            ->pluck('batch_code', 'id')
+                            ->all())
+                        ->required()
+                        ->searchable()
+                        ->live()
+                        ->afterStateUpdated(function (Set $set, mixed $state): void {
+                            $warehouseId = ProductionBatch::query()->find($state)?->output_warehouse_id;
+
+                            if (filled($warehouseId)) {
+                                $set('warehouse_id', $warehouseId);
+                            }
+                        })
+                        ->helperText('Semua unit yang disinkronkan akan dicatat sebagai hasil produksi batch ini.'),
+                    TextInput::make('external_batch_code')
+                        ->label('Kode Batch Eksternal (opsional)')
+                        ->placeholder('Contoh: BC001')
+                        ->helperText('Isi untuk membatasi sinkronisasi pada satu kode batch eksternal. Kosongkan untuk semua batch.'),
                     Select::make('warehouse_id')
                         ->label('Gudang Tujuan')
                         ->options(fn (): array => Warehouse::query()
@@ -271,7 +295,7 @@ class DaftarBarangEksternal extends Page implements HasForms
                             ->orderBy('name')
                             ->pluck('name', 'id')
                             ->all())
-                        ->default(fn () => config('services.external_barang.default_warehouse_id')
+                        ->default(fn (): mixed => config('services.external_barang.default_warehouse_id')
                             ?? Warehouse::query()->where('is_active', true)->orderBy('name')->value('id'))
                         ->required()
                         ->searchable()
@@ -285,15 +309,18 @@ class DaftarBarangEksternal extends Page implements HasForms
                 ])
                 ->action(function (array $data, ExternalBarangSyncService $syncService): void {
                     $warehouse = Warehouse::query()->findOrFail($data['warehouse_id']);
+                    $batch = ProductionBatch::query()->findOrFail($data['production_batch_id']);
 
                     $result = $syncService->sync($warehouse, [
                         'all_pages' => (bool) ($data['all_pages'] ?? true),
                         'dry_run' => (bool) ($data['dry_run'] ?? false),
+                        'production_batch_id' => $batch->getKey(),
+                        'batch_code' => $data['external_batch_code'] ?? null,
                     ]);
 
                     Notification::make()
                         ->title($result['dry_run'] ? 'Simulasi Selesai' : 'Sinkronisasi Selesai')
-                        ->body($result['message'])
+                        ->body($result['message'].' Batch: '.$batch->batch_code.'.')
                         ->success()
                         ->send();
                 }),

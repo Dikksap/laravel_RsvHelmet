@@ -26,6 +26,7 @@ class ExternalSyncedBarangFactory extends Factory
             'external_batch_id' => fake()->numberBetween(1, 50),
             'item_id' => Item::factory(),
             'warehouse_id' => Warehouse::factory(),
+            'production_batch_id' => null,
             'inventory_movement_id' => null,
             'status' => 'FINISHGOOD',
             'external_occurred_at' => now()->subHours(2),

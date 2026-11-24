@@ -6,4 +6,5 @@ scope:
     - app/Filament/Resources/ExternalSyncedBarangs/
 source_files: []
 depends_on: []
-related_to: []
+related_to:
+    - path: business_domain

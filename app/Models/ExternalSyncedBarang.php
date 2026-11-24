@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'external_batch_id',
     'item_id',
     'warehouse_id',
+    'production_batch_id',
     'inventory_movement_id',
     'status',
     'external_occurred_at',
@@ -52,6 +53,11 @@ class ExternalSyncedBarang extends Model
     public function movement(): BelongsTo
     {
         return $this->belongsTo(InventoryMovement::class, 'inventory_movement_id');
+    }
+
+    public function productionBatch(): BelongsTo
+    {
+        return $this->belongsTo(ProductionBatch::class);
     }
 
     public function mapping(): BelongsTo

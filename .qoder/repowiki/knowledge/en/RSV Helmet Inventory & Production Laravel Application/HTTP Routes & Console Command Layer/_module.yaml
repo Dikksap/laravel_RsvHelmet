@@ -7,5 +7,4 @@ scope:
     - app/Console/Commands/
 source_files: []
 depends_on: []
-related_to:
-    - path: business_domain
+related_to: []

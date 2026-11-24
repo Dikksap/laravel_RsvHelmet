@@ -40,17 +40,17 @@ class ItemRequestResource extends Resource
 {
     protected static ?string $model = ItemRequest::class;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Gudang';
+    protected static string|UnitEnum|null $navigationGroup = 'Permintaan Barang';
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-clipboard-document-list';
 
-    protected static ?string $navigationLabel = 'Permintaan Barang';
+    protected static ?string $navigationLabel = 'Daftar Permintaan';
 
     protected static ?string $modelLabel = 'Permintaan Barang';
 
     protected static ?string $pluralModelLabel = 'Permintaan Barang';
 
-    protected static ?int $navigationSort = 17;
+    protected static ?int $navigationSort = 10;
 
     protected static ?string $recordTitleAttribute = 'code';
 

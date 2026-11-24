@@ -94,6 +94,11 @@ class InventoryMovement extends Model
         return $this->hasMany(self::class, 'parent_movement_id');
     }
 
+    public function externalSyncedBarangs(): HasMany
+    {
+        return $this->hasMany(ExternalSyncedBarang::class, 'inventory_movement_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

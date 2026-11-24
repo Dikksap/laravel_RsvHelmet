@@ -1,6 +1,6 @@
 schema_version: 1
 module_path: ""
-title: RSV Helmet — Laravel Inventory & Production Application
+title: RSV Helmet Inventory & Production Laravel Application
 scope:
     - README.md
     - AGENTS.md

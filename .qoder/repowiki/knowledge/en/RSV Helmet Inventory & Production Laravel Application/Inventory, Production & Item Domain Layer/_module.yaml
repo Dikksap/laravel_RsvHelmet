@@ -7,7 +7,7 @@ scope:
 source_files: []
 depends_on: []
 related_to:
+    - path: filament_admin_ui/external_sync_resources
     - path: filament_admin_ui/item_requests_resource
-    - path: http_layer
     - path: livewire_components
     - path: test_suite

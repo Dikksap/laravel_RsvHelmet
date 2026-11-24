@@ -27,7 +27,7 @@ class InventoryBalanceSummary extends Page implements HasTable
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-cube';
 
-    protected static ?int $navigationSort = 11;
+    protected static ?int $navigationSort = 10;
 
     protected string $view = 'filament.pages.inventory-balance-summary';
 

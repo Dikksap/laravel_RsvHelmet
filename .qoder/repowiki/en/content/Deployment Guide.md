@@ -12,7 +12,15 @@
 - [docker/production/php.ini](file://docker/production/php.ini)
 - [docker/production/supervisord.conf](file://docker/production/supervisord.conf)
 - [docker/production/entrypoint.sh](file://docker/production/entrypoint.sh)
+- [bootstrap/app.php](file://bootstrap/app.php)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added new section on Cloudflare Tunnel and HTTPS Proxy Configuration
+- Updated Nginx configuration section to include reverse proxy considerations
+- Enhanced security hardening checklist with proxy-specific recommendations
+- Added troubleshooting guidance for mixed content issues with HTTPS proxies
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -20,16 +28,19 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Dependency Analysis](#dependency-analysis)
-7. [Performance Considerations](#performance-considerations)
-8. [Troubleshooting Guide](#troubleshooting-guide)
-9. [Conclusion](#conclusion)
-10. [Appendices](#appendices)
+6. [Cloudflare Tunnel and HTTPS Proxy Configuration](#cloudflare-tunnel-and-https-proxy-configuration)
+7. [Dependency Analysis](#dependency-analysis)
+8. [Performance Considerations](#performance-considerations)
+9. [Troubleshooting Guide](#troubleshooting-guide)
+10. [Conclusion](#conclusion)
+11. [Appendices](#appendices)
 
 ## Introduction
 This deployment guide explains how to run RSV Helmet in production using Docker containers, Nginx, and PHP-FPM. It covers the containerized application stack, CI/CD pipeline with GitHub Actions, automated builds and releases, environment configuration, security hardening, monitoring considerations, scaling and load balancing strategies, disaster recovery procedures, troubleshooting, and performance tuning.
 
 RSV Helmet is a Laravel 13 application that runs PHP 8.4 inside Alpine-based containers. The production image combines Nginx, PHP-FPM, and a queue worker under Supervisor. Database persistence uses MariaDB 11. Frontend assets are built with Vite during the multi-stage Docker build.
+
+The application supports deployment behind reverse proxies like Cloudflare Tunnel, with proper HTTPS termination handling through trusted proxy configuration.
 
 ## Project Structure
 The repository provides:
@@ -39,10 +50,12 @@ The repository provides:
 - A server-side deployment helper script.
 - Production configurations for Nginx, PHP, and Supervisor.
 - An entrypoint script that prepares storage, permissions, migrations, caching, and starts Supervisor.
+- Application bootstrap configuration with HTTPS proxy support for Cloudflare Tunnel deployments.
 
 ```mermaid
 graph TB
-Client["Client Browser"] --> Nginx["Nginx (port 80)"]
+Client["Client Browser"] --> CF["Cloudflare Tunnel / Reverse Proxy"]
+CF --> Nginx["Nginx (port 80)"]
 Nginx --> PHPFPM["PHP-FPM (port 9000)"]
 PHPFPM --> App["Laravel Application"]
 App --> DB["MariaDB 11"]
@@ -51,6 +64,7 @@ App --> Logs["Application Logs Volume"]
 ```
 
 **Diagram sources**
+- [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
 - [docker/production/nginx.conf:37-81](file://docker/production/nginx.conf#L37-L81)
 - [docker/production/supervisord.conf:7-35](file://docker/production/supervisord.conf#L7-L35)
 - [docker-compose.prod.yml:1-84](file://docker-compose.prod.yml#L1-L84)
@@ -58,6 +72,7 @@ App --> Logs["Application Logs Volume"]
 **Section sources**
 - [README.md:1-115](file://README.md#L1-L115)
 - [docs/DEPLOYMENT.md:1-75](file://docs/DEPLOYMENT.md#L1-L75)
+- [bootstrap/app.php:1-31](file://bootstrap/app.php#L1-L31)
 
 ## Core Components
 - Production Docker image: Multi-stage build producing a minimal Alpine image with Nginx, PHP-FPM, Supervisor, and required extensions.
@@ -66,6 +81,7 @@ App --> Logs["Application Logs Volume"]
 - Server deployment script: Pulls latest image, starts containers, caches config/routes/views, and links storage.
 - Runtime configuration: Nginx routing, static asset caching, security headers; PHP memory, upload limits, timezone, Opcache; Supervisor managing Nginx, PHP-FPM, and queue worker.
 - Entrypoint initialization: Creates directories, fixes permissions, ensures storage symlink, waits for DB, runs migrations if enabled, caches Laravel artifacts, then starts Supervisor.
+- **Updated** HTTPS proxy configuration: Trust proxy middleware enabling proper HTTPS detection when deployed behind Cloudflare Tunnel or similar reverse proxies.
 
 **Section sources**
 - [Dockerfile.prod:1-97](file://Dockerfile.prod#L1-L97)
@@ -76,6 +92,7 @@ App --> Logs["Application Logs Volume"]
 - [docker/production/php.ini:1-18](file://docker/production/php.ini#L1-L18)
 - [docker/production/supervisord.conf:1-36](file://docker/production/supervisord.conf#L1-L36)
 - [docker/production/entrypoint.sh:1-65](file://docker/production/entrypoint.sh#L1-L65)
+- [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
 
 ## Architecture Overview
 The production architecture consists of:
@@ -84,6 +101,7 @@ The production architecture consists of:
 - Persistent storage and logs mounted as named volumes.
 - Network isolation via a bridge network.
 - CI/CD pipeline that tests code, builds an optimized image, pushes it to GHCR, and optionally deploys via SSH.
+- **Updated** Support for reverse proxy deployments including Cloudflare Tunnel with proper HTTPS termination handling.
 
 ```mermaid
 graph TB
@@ -98,6 +116,7 @@ Compose["docker compose -f docker-compose.prod.yml"]
 App["App Container<br/>Nginx + PHP-FPM + Queue Worker"]
 DB["DB Container<br/>MariaDB 11"]
 Volumes["Volumes<br/>db_data, app_storage, app_logs"]
+Proxy["Reverse Proxy<br/>Cloudflare Tunnel"]
 end
 Test --> Build --> Push --> Deploy
 Deploy --> Compose
@@ -105,11 +124,13 @@ Compose --> App
 Compose --> DB
 App --> Volumes
 DB --> Volumes
+Proxy --> App
 ```
 
 **Diagram sources**
 - [.github/workflows/ci-cd.yml:15-150](file://.github/workflows/ci-cd.yml#L15-L150)
 - [docker-compose.prod.yml:1-84](file://docker-compose.prod.yml#L1-L84)
+- [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
 
 ## Detailed Component Analysis
 
@@ -230,6 +251,8 @@ Nginx serves the Laravel application with:
 - Gzip compression enabled for common types.
 - Client body size limit set to 64M.
 
+**Updated** When deploying behind reverse proxies like Cloudflare Tunnel, Nginx receives requests over HTTP internally while the proxy handles HTTPS termination. The application layer trusts proxy headers to determine the original request scheme and protocol.
+
 ```mermaid
 flowchart TD
 Request["HTTP Request"] --> CheckStatic{"Static Asset?"}
@@ -321,6 +344,56 @@ StartSupervisor --> End(["Processes Running"])
 **Section sources**
 - [docker/production/entrypoint.sh:1-65](file://docker/production/entrypoint.sh#L1-L65)
 
+## Cloudflare Tunnel and HTTPS Proxy Configuration
+
+### Overview
+RSV Helmet supports deployment behind reverse proxies like Cloudflare Tunnel, which terminate TLS connections and forward requests to the application over HTTP. This setup requires proper configuration to handle HTTPS detection and prevent mixed content security issues.
+
+### Trust Proxy Configuration
+The application includes middleware configuration that trusts proxy headers to correctly identify the original request scheme, client IP, and port:
+
+```php
+$middleware->trustProxies(
+    at: '*',
+    headers: Request::HEADER_X_FORWARDED_FOR
+        | Request::HEADER_X_FORWARDED_PROTO
+        | Request::HEADER_X_FORWARDED_PORT,
+);
+```
+
+This configuration enables:
+- **X-Forwarded-For**: Identifies the original client IP address
+- **X-Forwarded-Proto**: Determines the original request scheme (HTTPS vs HTTP)
+- **X-Forwarded-Port**: Preserves the original client port number
+
+### Mixed Content Resolution
+Without this configuration, Laravel assumes all requests are HTTP, causing:
+- Livewire and Filament URLs to be generated as `http://` instead of `https://`
+- Browser security blocks preventing form submissions on HTTPS pages
+- Mixed content warnings and failed authentication flows
+
+With trust proxy configuration:
+- All generated URLs respect the original HTTPS scheme
+- Form submissions work correctly on HTTPS pages
+- No mixed content security errors occur
+
+### Cloudflare Tunnel Setup
+When deploying with Cloudflare Tunnel:
+1. Configure Cloudflare Tunnel to forward traffic to your application's internal IP/port
+2. Ensure Cloudflare sends the appropriate X-Forwarded-* headers
+3. Verify that the application trusts these headers through the middleware configuration
+4. Test HTTPS functionality including form submissions and redirects
+
+### Alternative Reverse Proxies
+The same trust proxy configuration works with other reverse proxies:
+- Nginx/Apache reverse proxy
+- AWS ALB/NLB
+- Azure Application Gateway
+- Kubernetes Ingress controllers
+
+**Section sources**
+- [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
+
 ## Dependency Analysis
 The production stack has clear separation of concerns:
 - Nginx handles HTTP requests, static assets, and forwards PHP requests to PHP-FPM.
@@ -328,6 +401,7 @@ The production stack has clear separation of concerns:
 - Supervisor orchestrates all processes within the container.
 - MariaDB stores relational data and is accessed over the internal network.
 - CI/CD pipeline depends on GitHub Actions, Docker Buildx, GHCR, and optional SSH access.
+- **Updated** Trust proxy middleware handles reverse proxy scenarios for proper HTTPS detection.
 
 ```mermaid
 graph TB
@@ -335,6 +409,7 @@ NginxConf["nginx.conf"] --> AppRuntime["App Runtime"]
 PHPIni["php.ini"] --> AppRuntime
 SupervisorConf["supervisord.conf"] --> AppRuntime
 Entrypoint["entrypoint.sh"] --> AppRuntime
+Bootstrap["bootstrap/app.php"] --> AppRuntime
 Compose["docker-compose.prod.yml"] --> AppRuntime
 Compose --> DBService["DB Service"]
 CI["ci-cd.yml"] --> Build["Build Image"]
@@ -347,6 +422,7 @@ GHCR --> Compose
 - [docker/production/php.ini:1-18](file://docker/production/php.ini#L1-L18)
 - [docker/production/supervisord.conf:1-36](file://docker/production/supervisord.conf#L1-L36)
 - [docker/production/entrypoint.sh:1-65](file://docker/production/entrypoint.sh#L1-L65)
+- [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
 - [docker-compose.prod.yml:1-84](file://docker-compose.prod.yml#L1-L84)
 - [.github/workflows/ci-cd.yml:1-150](file://.github/workflows/ci-cd.yml#L1-L150)
 
@@ -355,6 +431,7 @@ GHCR --> Compose
 - [docker/production/php.ini:1-18](file://docker/production/php.ini#L1-L18)
 - [docker/production/supervisord.conf:1-36](file://docker/production/supervisord.conf#L1-L36)
 - [docker/production/entrypoint.sh:1-65](file://docker/production/entrypoint.sh#L1-L65)
+- [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
 - [docker-compose.prod.yml:1-84](file://docker-compose.prod.yml#L1-L84)
 - [.github/workflows/ci-cd.yml:1-150](file://.github/workflows/ci-cd.yml#L1-L150)
 
@@ -365,12 +442,14 @@ GHCR --> Compose
 - PHP-FPM listens on localhost:9000 for low-latency communication with Nginx.
 - Queue worker runs with retry and timeout settings suitable for background jobs.
 - Database timezone is set to Asia/Jakarta to avoid conversion overhead.
+- **Updated** Trust proxy configuration adds minimal overhead while ensuring correct HTTPS handling.
 
 Recommendations:
 - Monitor Opcache hit rate and adjust memory_consumption based on application size.
 - Tune Nginx worker_processes and worker_connections according to CPU cores and expected concurrency.
 - Use database query profiling and indexing to optimize slow queries.
 - Consider enabling Redis/Memcached for cache/session if traffic grows beyond database-backed store capacity.
+- Monitor reverse proxy performance and consider CDN caching for static assets.
 
 [No sources needed since this section provides general guidance]
 
@@ -383,20 +462,30 @@ Common issues and resolutions:
 - Queue worker not processing: Ensure queue_connection is set appropriately and supervisor is running the queue-worker program.
 - Static assets not loading: Confirm Vite build completed and assets exist in public/build. Rebuild assets if necessary.
 - Nginx 404/502 errors: Check Nginx error log and FastCGI configuration. Ensure PHP-FPM is listening on 9000.
+- **Updated** Mixed content errors with HTTPS: Verify trust proxy configuration is active and reverse proxy sends proper X-Forwarded-* headers. Check browser console for mixed content warnings.
+- **Updated** Login form submission blocked on HTTPS: Ensure trust proxy middleware is configured and Cloudflare Tunnel is properly forwarding HTTPS requests.
+
+**Updated** HTTPS Proxy Troubleshooting:
+- **Symptom**: Forms fail to submit on HTTPS pages
+- **Cause**: Laravel generates HTTP URLs instead of HTTPS due to missing trust proxy configuration
+- **Solution**: Verify trust proxy middleware is configured in bootstrap/app.php
+- **Verification**: Check that X-Forwarded-Proto header is present in incoming requests
 
 Operational commands:
 - View container status: docker compose ps
 - Follow logs: docker compose logs -f app
 - Run artisan commands: docker compose exec -T app php artisan [command]
+- **Updated** Test HTTPS functionality: curl -I https://your-domain.com to verify proper HTTPS response headers
 
 **Section sources**
 - [deploy.sh:14-33](file://deploy.sh#L14-L33)
 - [docker/production/entrypoint.sh:6-62](file://docker/production/entrypoint.sh#L6-L62)
 - [docker/production/nginx.conf:47-81](file://docker/production/nginx.conf#L47-L81)
 - [docker/production/supervisord.conf:25-35](file://docker/production/supervisord.conf#L25-L35)
+- [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
 
 ## Conclusion
-RSV Helmet’s production deployment leverages a robust, containerized stack with Nginx, PHP-FPM, and Supervisor, backed by MariaDB. The CI/CD pipeline automates testing, building, and pushing images to GHCR, with optional SSH-based deployment. Environment configuration is centralized in Compose and environment variables, while security headers and PHP hardening are applied in Nginx and PHP configs. For scale-out, consider horizontal scaling of app containers behind a reverse proxy, externalizing cache/session stores, and using managed databases. Disaster recovery should focus on backing up DB volumes and application storage/logs.
+RSV Helmet's production deployment leverages a robust, containerized stack with Nginx, PHP-FPM, and Supervisor, backed by MariaDB. The CI/CD pipeline automates testing, building, and pushing images to GHCR, with optional SSH-based deployment. Environment configuration is centralized in Compose and environment variables, while security headers and PHP hardening are applied in Nginx and PHP configs. The application now supports deployment behind reverse proxies like Cloudflare Tunnel with proper HTTPS termination handling through trust proxy configuration. For scale-out, consider horizontal scaling of app containers behind a reverse proxy, externalizing cache/session stores, and using managed databases. Disaster recovery should focus on backing up DB volumes and application storage/logs.
 
 [No sources needed since this section summarizes without analyzing specific files]
 
@@ -422,16 +511,20 @@ These variables are defined in the Compose file and consumed by the application 
 - Use HTTPS termination at a reverse proxy or load balancer outside the container.
 - Rotate secrets regularly and manage them securely (e.g., secret managers).
 - Limit request body size and timeouts appropriately.
+- **Updated** Configure trust proxy middleware for reverse proxy deployments to prevent mixed content issues.
+- **Updated** Verify X-Forwarded-* headers are properly handled by the application.
 
 **Section sources**
 - [docker/production/nginx.conf:26-80](file://docker/production/nginx.conf#L26-L80)
 - [docker/production/php.ini:6-7](file://docker/production/php.ini#L6-L7)
+- [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
 
 ### Scaling and Load Balancing
 - Scale horizontally by running multiple app containers behind a reverse proxy (e.g., Nginx, HAProxy, Traefik).
 - Externalize shared state: move cache/session to Redis/Memcached and queues to RabbitMQ/Redis.
 - Use read replicas for database reads if applicable.
 - Configure health checks and graceful shutdowns for zero-downtime deployments.
+- **Updated** Ensure trust proxy configuration works across all application instances behind load balancers.
 
 [No sources needed since this section provides general guidance]
 
@@ -440,5 +533,37 @@ These variables are defined in the Compose file and consumed by the application 
 - Snapshot application storage and logs volumes (app_storage, app_logs).
 - Maintain versioned images in GHCR for rollback capability.
 - Document restore steps: recreate volumes, restore backups, re-run migrations if schema changed, restart services.
+- **Updated** Verify HTTPS proxy configuration remains intact after restoration.
 
 [No sources needed since this section provides general guidance]
+
+### Cloudflare Tunnel Configuration Examples
+
+#### Basic Cloudflare Tunnel Setup
+```bash
+# Install cloudflared
+curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o cloudflared.deb
+sudo dpkg -i cloudflared.deb
+
+# Login to Cloudflare
+cloudflared tunnel login
+
+# Create tunnel
+cloudflared tunnel create rsv-helmet
+
+# Configure DNS record
+cloudflared tunnel route dns rsv-helmet app.yourdomain.com
+
+# Start tunnel with local app
+cloudflared tunnel --no-autoupdate run rsv-helmet
+```
+
+#### Reverse Proxy Header Verification
+```bash
+# Test if headers are being forwarded
+curl -I https://yourdomain.com
+# Should show proper HTTPS headers and no mixed content warnings
+```
+
+**Section sources**
+- [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)

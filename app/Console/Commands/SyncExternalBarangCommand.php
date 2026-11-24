@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\ProductionBatch;
 use App\Models\Warehouse;
 use App\Services\ExternalBarangSyncService;
 use Illuminate\Console\Command;
@@ -15,6 +16,8 @@ class SyncExternalBarangCommand extends Command
      */
     protected $signature = 'sync:external-barang
         {--warehouse= : ID gudang tujuan penambahan stok}
+        {--batch= : ID batch produksi tujuan hasil produksi}
+        {--kode-batch= : Filter kode batch eksternal (contoh: BC001)}
         {--limit=100 : Jumlah record per request (maks 100)}
         {--all-pages : Tarik seluruh halaman paginasi}
         {--status= : Filter status tertentu dari API eksternal}
@@ -44,6 +47,15 @@ class SyncExternalBarangCommand extends Command
             return self::FAILURE;
         }
 
+        $batchId = $this->option('batch');
+        $batch = filled($batchId) ? ProductionBatch::query()->find($batchId) : null;
+
+        if (filled($batchId) && ! $batch) {
+            $this->error('Batch produksi tidak ditemukan. Periksa kembali opsi --batch=ID.');
+
+            return self::FAILURE;
+        }
+
         $dryRun = (bool) $this->option('dry-run');
         $this->info(sprintf(
             'Memulai sinkronisasi unit barang eksternal ke gudang [%s]%s...',
@@ -56,6 +68,8 @@ class SyncExternalBarangCommand extends Command
             'all_pages' => (bool) $this->option('all-pages'),
             'dry_run' => $dryRun,
             'status' => $this->option('status'),
+            'batch_code' => $this->option('kode-batch'),
+            'production_batch_id' => $batch?->getKey(),
         ]);
 
         $this->table(

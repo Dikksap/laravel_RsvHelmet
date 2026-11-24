@@ -308,11 +308,13 @@ class StockMovementService
 
             foreach ($children as $child) {
                 $this->reverse($child);
+                $child->externalSyncedBarangs()->delete();
                 $child->delete();
             }
 
             foreach ($movements as $item) {
                 $this->reverse($item);
+                $item->externalSyncedBarangs()->delete();
                 $item->delete();
             }
         });

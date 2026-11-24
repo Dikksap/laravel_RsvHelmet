@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Filament\Pages\DaftarBarangEksternal;
 use App\Models\ExternalItemMapping;
 use App\Models\Item;
+use App\Models\ProductionBatch;
 use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -137,6 +138,7 @@ class DaftarBarangEksternalTest extends TestCase
     {
         $warehouse = Warehouse::factory()->create();
         $item = Item::factory()->create();
+        $batch = ProductionBatch::factory()->create(['batch_code' => 'BATCH-SYNC-01']);
 
         ExternalItemMapping::create([
             'item_id' => $item->getKey(),
@@ -167,6 +169,7 @@ class DaftarBarangEksternalTest extends TestCase
 
         Livewire::test(DaftarBarangEksternal::class)
             ->callAction('sinkron_stok_global', data: [
+                'production_batch_id' => $batch->getKey(),
                 'warehouse_id' => $warehouse->getKey(),
                 'all_pages' => false,
                 'dry_run' => false,
@@ -176,6 +179,12 @@ class DaftarBarangEksternalTest extends TestCase
         $this->assertDatabaseHas('external_synced_barangs', [
             'kode_barang' => 'BC001-WB005-181126-0201',
             'warehouse_id' => $warehouse->getKey(),
+            'production_batch_id' => $batch->getKey(),
+        ]);
+
+        $this->assertDatabaseHas('inventory_movements', [
+            'reference' => 'BC001-WB005-181126-0201',
+            'production_batch_id' => $batch->getKey(),
         ]);
     }
 }

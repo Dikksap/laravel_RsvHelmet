@@ -5,21 +5,26 @@
 - [2026_11_13_000007_create_items_table.php](file://database/migrations/2026_11_13_000007_create_items_table.php)
 - [2026_11_16_000001_create_warehouses_table.php](file://database/migrations/2026_11_16_000001_create_warehouses_table.php)
 - [2026_11_16_000002_create_inventory_balances_table.php](file://database/migrations/2026_11_16_000002_create_inventory_balances_table.php)
+- [2026_11_17_000005_create_inventory_movements_table.php](file://database/migrations/2026_11_17_000005_create_inventory_movements_table.php)
 - [2026_11_17_000002_create_production_batches_table.php](file://database/migrations/2026_11_17_000002_create_production_batches_table.php)
 - [2026_11_17_000003_create_production_batch_items_table.php](file://database/migrations/2026_11_17_000003_create_production_batch_items_table.php)
-- [2026_11_17_000004_create_production_batch_materials_table.php](file://database/migrations/2026_11_17_000004_create_production_batch_materials_table.php)
-- [2026_11_17_000005_create_inventory_movements_table.php](file://database/migrations/2026_11_17_000005_create_inventory_movements_table.php)
-- [2026_11_18_000001_add_parent_movement_id_to_inventory_movements_table.php](file://database/migrations/2026_11_18_000001_add_parent_movement_id_to_inventory_movements_table.php)
 - [2026_11_19_000002_create_stock_opnames_table.php](file://database/migrations/2026_11_19_000002_create_stock_opnames_table.php)
 - [2026_11_19_000003_create_stock_opname_lines_table.php](file://database/migrations/2026_11_19_000003_create_stock_opname_lines_table.php)
-- [2026_11_19_000004_add_stock_opname_id_to_inventory_movements_table.php](file://database/migrations/2026_11_19_000004_add_stock_opname_id_to_inventory_movements_table.php)
-- [2026_11_19_000005_create_divisions_table.php](file://database/migrations/2026_11_19_000005_create_divisions_table.php)
 - [2026_11_19_000007_create_item_requests_table.php](file://database/migrations/2026_11_19_000007_create_item_requests_table.php)
 - [2026_11_19_000008_create_item_request_lines_table.php](file://database/migrations/2026_11_19_000008_create_item_request_lines_table.php)
-- [2026_11_19_000011_add_item_request_id_to_inventory_movements_table.php](file://database/migrations/2026_11_19_000011_add_item_request_id_to_inventory_movements_table.php)
-- [2026_11_19_000012_create_item_request_settings_table.php](file://database/migrations/2026_11_19_000012_create_item_request_settings_table.php)
+- [2026_11_19_000005_create_divisions_table.php](file://database/migrations/2026_11_19_000005_create_divisions_table.php)
 - [2026_11_23_000001_create_external_item_mappings_table.php](file://database/migrations/2026_11_23_000001_create_external_item_mappings_table.php)
+- [2026_11_23_000002_create_external_synced_barangs_table.php](file://database/migrations/2026_11_23_000002_create_external_synced_barangs_table.php)
+- [2026_11_18_000002_drop_quantity_reserved_from_inventory_balances_table.php](file://database/migrations/2026_11_18_000002_drop_quantity_reserved_from_inventory_balances_table.php)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive documentation for external integration tables (external_item_mappings, external_synced_barangs)
+- Updated entity relationship diagram to include new external integration components
+- Enhanced troubleshooting guide with external system synchronization issues
+- Added indexing strategies for external data synchronization performance
+- Updated migration strategy section to reflect recent external integration migrations
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -34,10 +39,10 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-This document describes the database schema for RSV Helmet, focusing on core inventory and production entities: Items, Warehouses, InventoryBalances, InventoryMovements, ProductionBatches, StockOpnames, ItemRequests, Divisions, and related supporting tables. It explains table structures, field definitions, data types, constraints, indexes, migration strategy, validation rules enforced at the database level, data lifecycle considerations, and guidance for extending the schema.
+This document describes the database schema for RSV Helmet, focusing on core inventory and production entities: Items, Warehouses, InventoryBalances, InventoryMovements, ProductionBatches, StockOpnames, ItemRequests, Divisions, ExternalItemMappings, and related supporting tables. It explains table structures, field definitions, data types, constraints, indexes, migration strategy, validation rules enforced at the database level, data lifecycle considerations, and guidance for extending the schema. The schema now includes comprehensive external system integration capabilities for synchronizing with external barang systems.
 
 ## Project Structure
-The database schema is defined through Laravel migrations under database/migrations. The most relevant files for this documentation are listed above. Each migration creates or alters a table and defines relationships, constraints, and indexes.
+The database schema is defined through Laravel migrations under database/migrations. The most relevant files for this documentation are listed above. Each migration creates or alters a table and defines relationships, constraints, and indexes. The schema encompasses master data, transactional records, and external integration components.
 
 ```mermaid
 graph TB
@@ -70,6 +75,7 @@ ITEM_REQUEST_SETTINGS["item_request_settings"]
 end
 subgraph "External Integration"
 EXT_ITEM_MAPPINGS["external_item_mappings"]
+EXT_SYNCED_BARANGS["external_synced_barangs"]
 end
 ITEMS --> INV_BALANCES
 WAREHOUSES --> INV_BALANCES
@@ -91,37 +97,39 @@ ITEM_REQUESTS --> INV_MOVEMENTS
 WAREHOUSES --> ITEM_REQUEST_SETTINGS
 WAREHOUSES --> ITEM_REQUEST_SETTINGS
 ITEMS --> EXT_ITEM_MAPPINGS
+EXT_ITEM_MAPPINGS --> EXT_SYNCED_BARANGS
+ITEMS --> EXT_SYNCED_BARANGS
+WAREHOUSES --> EXT_SYNCED_BARANGS
+INV_MOVEMENTS --> EXT_SYNCED_BARANGS
 ```
 
 **Diagram sources**
 - [2026_11_13_000007_create_items_table.php:14-73](file://database/migrations/2026_11_13_000007_create_items_table.php#L14-L73)
 - [2026_11_16_000001_create_warehouses_table.php:14-21](file://database/migrations/2026_11_16_000001_create_warehouses_table.php#L14-L21)
 - [2026_11_16_000002_create_inventory_balances_table.php:14-30](file://database/migrations/2026_11_16_000002_create_inventory_balances_table.php#L14-L30)
+- [2026_11_17_000005_create_inventory_movements_table.php:14-41](file://database/migrations/2026_11_17_000005_create_inventory_movements_table.php#L14-L41)
 - [2026_11_17_000002_create_production_batches_table.php:14-34](file://database/migrations/2026_11_17_000002_create_production_batches_table.php#L14-L34)
 - [2026_11_17_000003_create_production_batch_items_table.php:14-26](file://database/migrations/2026_11_17_000003_create_production_batch_items_table.php#L14-L26)
-- [2026_11_17_000004_create_production_batch_materials_table.php:14-26](file://database/migrations/2026_11_17_000004_create_production_batch_materials_table.php#L14-L26)
-- [2026_11_17_000005_create_inventory_movements_table.php:14-41](file://database/migrations/2026_11_17_000005_create_inventory_movements_table.php#L14-L41)
 - [2026_11_19_000002_create_stock_opnames_table.php:14-34](file://database/migrations/2026_11_19_000002_create_stock_opnames_table.php#L14-L34)
 - [2026_11_19_000003_create_stock_opname_lines_table.php:14-35](file://database/migrations/2026_11_19_000003_create_stock_opname_lines_table.php#L14-L35)
 - [2026_11_19_000007_create_item_requests_table.php:14-27](file://database/migrations/2026_11_19_000007_create_item_requests_table.php#L14-L27)
 - [2026_11_19_000008_create_item_request_lines_table.php:14-27](file://database/migrations/2026_11_19_000008_create_item_request_lines_table.php#L14-L27)
-- [2026_11_19_000012_create_item_request_settings_table.php:14-25](file://database/migrations/2026_11_19_000012_create_item_request_settings_table.php#L14-L25)
 - [2026_11_23_000001_create_external_item_mappings_table.php:14-27](file://database/migrations/2026_11_23_000001_create_external_item_mappings_table.php#L14-L27)
+- [2026_11_23_000002_create_external_synced_barangs_table.php:14-37](file://database/migrations/2026_11_23_000002_create_external_synced_barangs_table.php#L14-L37)
 
 **Section sources**
 - [2026_11_13_000007_create_items_table.php:14-73](file://database/migrations/2026_11_13_000007_create_items_table.php#L14-L73)
 - [2026_11_16_000001_create_warehouses_table.php:14-21](file://database/migrations/2026_11_16_000001_create_warehouses_table.php#L14-L21)
 - [2026_11_16_000002_create_inventory_balances_table.php:14-30](file://database/migrations/2026_11_16_000002_create_inventory_balances_table.php#L14-L30)
+- [2026_11_17_000005_create_inventory_movements_table.php:14-41](file://database/migrations/2026_11_17_000005_create_inventory_movements_table.php#L14-L41)
 - [2026_11_17_000002_create_production_batches_table.php:14-34](file://database/migrations/2026_11_17_000002_create_production_batches_table.php#L14-L34)
 - [2026_11_17_000003_create_production_batch_items_table.php:14-26](file://database/migrations/2026_11_17_000003_create_production_batch_items_table.php#L14-L26)
-- [2026_11_17_000004_create_production_batch_materials_table.php:14-26](file://database/migrations/2026_11_17_000004_create_production_batch_materials_table.php#L14-L26)
-- [2026_11_17_000005_create_inventory_movements_table.php:14-41](file://database/migrations/2026_11_17_000005_create_inventory_movements_table.php#L14-L41)
 - [2026_11_19_000002_create_stock_opnames_table.php:14-34](file://database/migrations/2026_11_19_000002_create_stock_opnames_table.php#L14-L34)
 - [2026_11_19_000003_create_stock_opname_lines_table.php:14-35](file://database/migrations/2026_11_19_000003_create_stock_opname_lines_table.php#L14-L35)
 - [2026_11_19_000007_create_item_requests_table.php:14-27](file://database/migrations/2026_11_19_000007_create_item_requests_table.php#L14-L27)
 - [2026_11_19_000008_create_item_request_lines_table.php:14-27](file://database/migrations/2026_11_19_000008_create_item_request_lines_table.php#L14-L27)
-- [2026_11_19_000012_create_item_request_settings_table.php:14-25](file://database/migrations/2026_11_19_000012_create_item_request_settings_table.php#L14-L25)
 - [2026_11_23_000001_create_external_item_mappings_table.php:14-27](file://database/migrations/2026_11_23_000001_create_external_item_mappings_table.php#L14-L27)
+- [2026_11_23_000002_create_external_synced_barangs_table.php:14-37](file://database/migrations/2026_11_23_000002_create_external_synced_barangs_table.php#L14-L37)
 
 ## Core Components
 - Items: Master product catalog with classification, dimensions, pricing, and variant configuration.
@@ -132,11 +140,13 @@ ITEMS --> EXT_ITEM_MAPPINGS
 - StockOpnames: Periodic physical counts with line-level details and adjustments.
 - ItemRequests: Procurement requests with lines and optional approval workflow.
 - ExternalItemMappings: Mapping between internal items and external system variants.
+- ExternalSyncedBarangs: Synchronization records for external barang system integration.
 
 Key characteristics:
 - Quantities use decimal(15,3) to support fractional units.
 - Foreign keys enforce referential integrity across master and transactional tables.
 - Indexes optimize common queries by item, warehouse, time, and status.
+- External integration provides bidirectional synchronization capabilities.
 
 **Section sources**
 - [2026_11_13_000007_create_items_table.php:14-73](file://database/migrations/2026_11_13_000007_create_items_table.php#L14-L73)
@@ -147,9 +157,10 @@ Key characteristics:
 - [2026_11_19_000002_create_stock_opnames_table.php:14-34](file://database/migrations/2026_11_19_000002_create_stock_opnames_table.php#L14-L34)
 - [2026_11_19_000007_create_item_requests_table.php:14-27](file://database/migrations/2026_11_19_000007_create_item_requests_table.php#L14-L27)
 - [2026_11_23_000001_create_external_item_mappings_table.php:14-27](file://database/migrations/2026_11_23_000001_create_external_item_mappings_table.php#L14-L27)
+- [2026_11_23_000002_create_external_synced_barangs_table.php:14-37](file://database/migrations/2026_11_23_000002_create_external_synced_barangs_table.php#L14-L37)
 
 ## Architecture Overview
-The schema separates master data from transactional records and provides an immutable movement ledger. Production batches define planned outputs and material requirements; stock opnames capture physical counts; item requests drive procurement flows. All movements reference the originating business event when applicable.
+The schema separates master data from transactional records and provides an immutable movement ledger. Production batches define planned outputs and material requirements; stock opnames capture physical counts; item requests drive procurement flows. All movements reference the originating business event when applicable. The architecture now includes comprehensive external system integration for synchronizing with external barang systems, providing bidirectional data flow and audit trails.
 
 ```mermaid
 erDiagram
@@ -194,7 +205,6 @@ int id PK
 int warehouse_id FK
 uuid item_id FK
 decimal quantity_on_hand
-decimal quantity_reserved
 decimal minimum_quantity
 timestamp last_counted_at
 datetime created_at
@@ -318,6 +328,21 @@ boolean is_active
 datetime created_at
 datetime updated_at
 }
+EXTERNAL_SYNCED_BARANGS {
+int id PK
+string kode_barang UK
+unsignedBigInteger external_id
+unsignedInteger external_variant_id
+unsignedBigInteger external_batch_id
+uuid item_id FK
+int warehouse_id FK
+int inventory_movement_id FK
+string status
+dateTime external_occurred_at
+dateTime synced_at
+datetime created_at
+datetime updated_at
+}
 ITEMS ||--o{ INVENTORY_BALANCES : "per item per warehouse"
 WAREHOUSES ||--o{ INVENTORY_BALANCES : "per warehouse"
 ITEMS ||--o{ INVENTORY_MOVEMENTS : "movement source"
@@ -337,6 +362,10 @@ ITEMS ||--o{ ITEM_REQUEST_LINES : "requested items"
 ITEM_REQUESTS ||--o{ INVENTORY_MOVEMENTS : "fulfillment"
 WAREHOUSES ||--o{ ITEM_REQUEST_SETTINGS : "defaults"
 ITEMS ||--o{ EXTERNAL_ITEM_MAPPINGS : "external mapping"
+EXTERNAL_ITEM_MAPPINGS ||--o{ EXTERNAL_SYNCED_BARANGS : "synced records"
+ITEMS ||--o{ EXTERNAL_SYNCED_BARANGS : "mapped items"
+WAREHOUSES ||--o{ EXTERNAL_SYNCED_BARANGS : "synced locations"
+INVENTORY_MOVEMENTS ||--o{ EXTERNAL_SYNCED_BARANGS : "linked movements"
 ```
 
 **Diagram sources**
@@ -346,13 +375,12 @@ ITEMS ||--o{ EXTERNAL_ITEM_MAPPINGS : "external mapping"
 - [2026_11_17_000005_create_inventory_movements_table.php:14-41](file://database/migrations/2026_11_17_000005_create_inventory_movements_table.php#L14-L41)
 - [2026_11_17_000002_create_production_batches_table.php:14-34](file://database/migrations/2026_11_17_000002_create_production_batches_table.php#L14-L34)
 - [2026_11_17_000003_create_production_batch_items_table.php:14-26](file://database/migrations/2026_11_17_000003_create_production_batch_items_table.php#L14-L26)
-- [2026_11_17_000004_create_production_batch_materials_table.php:14-26](file://database/migrations/2026_11_17_000004_create_production_batch_materials_table.php#L14-L26)
 - [2026_11_19_000002_create_stock_opnames_table.php:14-34](file://database/migrations/2026_11_19_000002_create_stock_opnames_table.php#L14-L34)
 - [2026_11_19_000003_create_stock_opname_lines_table.php:14-35](file://database/migrations/2026_11_19_000003_create_stock_opname_lines_table.php#L14-L35)
 - [2026_11_19_000007_create_item_requests_table.php:14-27](file://database/migrations/2026_11_19_000007_create_item_requests_table.php#L14-L27)
 - [2026_11_19_000008_create_item_request_lines_table.php:14-27](file://database/migrations/2026_11_19_000008_create_item_request_lines_table.php#L14-L27)
-- [2026_11_19_000012_create_item_request_settings_table.php:14-25](file://database/migrations/2026_11_19_000012_create_item_request_settings_table.php#L14-L25)
 - [2026_11_23_000001_create_external_item_mappings_table.php:14-27](file://database/migrations/2026_11_23_000001_create_external_item_mappings_table.php#L14-L27)
+- [2026_11_23_000002_create_external_synced_barangs_table.php:14-37](file://database/migrations/2026_11_23_000002_create_external_synced_barangs_table.php#L14-L37)
 
 ## Detailed Component Analysis
 
@@ -397,7 +425,6 @@ ITEMS ||--o{ EXTERNAL_ITEM_MAPPINGS : "external mapping"
 - Key fields:
   - warehouse_id, item_id: Composite unique key ensures one balance row per item per warehouse.
   - quantity_on_hand: Current stock level.
-  - quantity_reserved: Reserved stock (note: later removed via migration).
   - minimum_quantity: Reorder threshold.
   - last_counted_at: Last physical count timestamp.
 - Constraints:
@@ -411,6 +438,7 @@ Notes:
 
 **Section sources**
 - [2026_11_16_000002_create_inventory_balances_table.php:14-30](file://database/migrations/2026_11_16_000002_create_inventory_balances_table.php#L14-L30)
+- [2026_11_18_000002_drop_quantity_reserved_from_inventory_balances_table.php:14-20](file://database/migrations/2026_11_18_000002_drop_quantity_reserved_from_inventory_balances_table.php#L14-L20)
 
 ### InventoryMovements
 - Purpose: Immutable ledger of all stock changes with rich context.
@@ -434,9 +462,6 @@ Notes:
 
 **Section sources**
 - [2026_11_17_000005_create_inventory_movements_table.php:14-41](file://database/migrations/2026_11_17_000005_create_inventory_movements_table.php#L14-L41)
-- [2026_11_18_000001_add_parent_movement_id_to_inventory_movements_table.php:14-20](file://database/migrations/2026_11_18_000001_add_parent_movement_id_to_inventory_movements_table.php#L14-L20)
-- [2026_11_19_000004_add_stock_opname_id_to_inventory_movements_table.php:14-20](file://database/migrations/2026_11_19_000004_add_stock_opname_id_to_inventory_movements_table.php#L14-L20)
-- [2026_11_19_000011_add_item_request_id_to_inventory_movements_table.php:14-20](file://database/migrations/2026_11_19_000011_add_item_request_id_to_inventory_movements_table.php#L14-L20)
 
 ### ProductionBatches
 - Purpose: Manufacturing orders capturing planned outputs and material requirements.
@@ -466,7 +491,6 @@ Notes:
 
 **Section sources**
 - [2026_11_17_000003_create_production_batch_items_table.php:14-26](file://database/migrations/2026_11_17_000003_create_production_batch_items_table.php#L14-L26)
-- [2026_11_17_000004_create_production_batch_materials_table.php:14-26](file://database/migrations/2026_11_17_000004_create_production_batch_materials_table.php#L14-L26)
 
 ### StockOpnames and StockOpnameLines
 - Purpose: Physical inventory counting process with line-level detail and adjustments.
@@ -496,14 +520,6 @@ Notes:
 - [2026_11_19_000007_create_item_requests_table.php:14-27](file://database/migrations/2026_11_19_000007_create_item_requests_table.php#L14-L27)
 - [2026_11_19_000008_create_item_request_lines_table.php:14-27](file://database/migrations/2026_11_19_000008_create_item_request_lines_table.php#L14-L27)
 
-### ItemRequestSettings
-- Purpose: Default settings for item requests, including origin and destination warehouses.
-- Key fields:
-  - warehouse_id, destination_warehouse_id: Nullable defaults.
-
-**Section sources**
-- [2026_11_19_000012_create_item_request_settings_table.php:14-25](file://database/migrations/2026_11_19_000012_create_item_request_settings_table.php#L14-L25)
-
 ### ExternalItemMappings
 - Purpose: Map internal items to external system variants.
 - Key fields:
@@ -512,9 +528,29 @@ Notes:
   - external_variant_id: Unique external identifier.
   - external_variant_code, external_product_name, external_style_name, external_color_name, external_size_name: External descriptors.
   - is_active: Active mapping flag.
+- Constraints:
+  - Unique index on external_variant_id.
+  - Foreign key to items with cascade delete.
 
 **Section sources**
 - [2026_11_23_000001_create_external_item_mappings_table.php:14-27](file://database/migrations/2026_11_23_000001_create_external_item_mappings_table.php#L14-L27)
+
+### ExternalSyncedBarangs
+- Purpose: Track synchronization records between internal inventory and external barang system.
+- Key fields:
+  - kode_barang: Unique external item code.
+  - external_id, external_variant_id, external_batch_id: External system identifiers.
+  - item_id, warehouse_id: Internal system references.
+  - inventory_movement_id: Link to corresponding internal movement.
+  - status: Synchronization status tracking.
+  - external_occurred_at, synced_at: Timestamps for external and internal sync events.
+- Constraints:
+  - Unique index on kode_barang.
+  - Indexes on item_id, warehouse_id, and synced_at for performance.
+  - Foreign keys to items, warehouses, and inventory_movements.
+
+**Section sources**
+- [2026_11_23_000002_create_external_synced_barangs_table.php:14-37](file://database/migrations/2026_11_23_000002_create_external_synced_barangs_table.php#L14-L37)
 
 ## Dependency Analysis
 - High cohesion within domains:
@@ -522,10 +558,11 @@ Notes:
   - Production domain: production_batches, production_batch_items, production_batch_materials.
   - Stocktaking domain: stock_opnames, stock_opname_lines.
   - Procurement domain: item_requests, item_request_lines, item_request_settings.
-  - External integration: external_item_mappings.
+  - External integration: external_item_mappings, external_synced_barangs.
 - Coupling points:
   - inventory_movements acts as a central hub connecting production, stocktaking, and procurement events.
   - items and warehouses are referenced by multiple transactional tables.
+  - external_synced_barangs bridges internal inventory operations with external system synchronization.
 
 ```mermaid
 graph LR
@@ -544,18 +581,24 @@ ITEMS --> STOCK_OPNAME_LINES["stock_opname_lines"]
 STOCK_OPNAMES --> STOCK_OPNAME_LINES
 ITEMS --> ITEM_REQUEST_LINES["item_request_lines"]
 ITEM_REQUESTS --> ITEM_REQUEST_LINES
+ITEMS --> EXT_ITEM_MAPPINGS["external_item_mappings"]
+EXT_ITEM_MAPPINGS --> EXT_SYNCED_BARANGS["external_synced_barangs"]
+ITEMS --> EXT_SYNCED_BARANGS
+WAREHOUSES --> EXT_SYNCED_BARANGS
+INV_MOVEMENTS --> EXT_SYNCED_BARANGS
 ```
 
 **Diagram sources**
 - [2026_11_17_000005_create_inventory_movements_table.php:14-41](file://database/migrations/2026_11_17_000005_create_inventory_movements_table.php#L14-L41)
 - [2026_11_17_000002_create_production_batches_table.php:14-34](file://database/migrations/2026_11_17_000002_create_production_batches_table.php#L14-L34)
 - [2026_11_17_000003_create_production_batch_items_table.php:14-26](file://database/migrations/2026_11_17_000003_create_production_batch_items_table.php#L14-L26)
-- [2026_11_17_000004_create_production_batch_materials_table.php:14-26](file://database/migrations/2026_11_17_000004_create_production_batch_materials_table.php#L14-L26)
 - [2026_11_16_000002_create_inventory_balances_table.php:14-30](file://database/migrations/2026_11_16_000002_create_inventory_balances_table.php#L14-L30)
 - [2026_11_19_000002_create_stock_opnames_table.php:14-34](file://database/migrations/2026_11_19_000002_create_stock_opnames_table.php#L14-L34)
 - [2026_11_19_000003_create_stock_opname_lines_table.php:14-35](file://database/migrations/2026_11_19_000003_create_stock_opname_lines_table.php#L14-L35)
 - [2026_11_19_000007_create_item_requests_table.php:14-27](file://database/migrations/2026_11_19_000007_create_item_requests_table.php#L14-L27)
 - [2026_11_19_000008_create_item_request_lines_table.php:14-27](file://database/migrations/2026_11_19_000008_create_item_request_lines_table.php#L14-L27)
+- [2026_11_23_000001_create_external_item_mappings_table.php:14-27](file://database/migrations/2026_11_23_000001_create_external_item_mappings_table.php#L14-L27)
+- [2026_11_23_000002_create_external_synced_barangs_table.php:14-37](file://database/migrations/2026_11_23_000002_create_external_synced_barangs_table.php#L14-L37)
 
 **Section sources**
 - [2026_11_17_000005_create_inventory_movements_table.php:14-41](file://database/migrations/2026_11_17_000005_create_inventory_movements_table.php#L14-L41)
@@ -569,35 +612,43 @@ ITEM_REQUESTS --> ITEM_REQUEST_LINES
   - Additional indexes on production_batch_id and transfer_group_id improve lookups by batch and grouped transfers.
   - stock_opname_lines includes index on item_id for faster joins.
   - item_requests indexes status for filtering.
+  - external_synced_barangs includes indexes on item_id, warehouse_id, and synced_at for efficient synchronization queries.
 - Denormalization trade-offs:
   - inventory_balances provides fast read access to current stock per item per warehouse but must be kept consistent with inventory_movements.
 - Data volume growth:
   - inventory_movements will grow continuously; consider partitioning by occurred_at if query patterns allow.
+  - external_synced_barangs may grow significantly with external system integrations; monitor growth patterns.
 - Concurrency:
   - Use transactions around multi-step operations that update balances and create movements to maintain consistency.
-
-[No sources needed since this section provides general guidance]
+  - External synchronization should handle concurrent updates carefully to prevent data conflicts.
 
 ## Troubleshooting Guide
 - Referential integrity errors:
   - Ensure referenced items, warehouses, users, and batches exist before creating movements or balances.
+  - Verify external_item_mappings exist before attempting external synchronization.
 - Duplicate entries:
   - Prevent duplicate lines in production batches and stock opname lines using composite unique constraints.
+  - Check for duplicate external_variant_id values in external_item_mappings.
 - Inconsistent stock levels:
   - Validate that inventory_movements sum matches inventory_balances; reconcile discrepancies via stock opnames.
+  - Compare external_synced_barangs timestamps with inventory_movements to identify synchronization gaps.
 - Missing context links:
   - When movements lack production_batch_id, stock_opname_id, or item_request_id, trace back to application logic to ensure proper linkage.
+  - Verify external_synced_barangs.inventory_movement_id links are properly established during synchronization.
+- External synchronization issues:
+  - Check external_occurred_at vs synced_at timestamps to identify sync delays.
+  - Monitor status field in external_synced_barangs for failed synchronization attempts.
+  - Validate external_variant_id mappings in external_item_mappings for correct external system references.
 
 **Section sources**
 - [2026_11_17_000005_create_inventory_movements_table.php:14-41](file://database/migrations/2026_11_17_000005_create_inventory_movements_table.php#L14-L41)
 - [2026_11_17_000003_create_production_batch_items_table.php:14-26](file://database/migrations/2026_11_17_000003_create_production_batch_items_table.php#L14-L26)
-- [2026_11_17_000004_create_production_batch_materials_table.php:14-26](file://database/migrations/2026_11_17_000004_create_production_batch_materials_table.php#L14-L26)
 - [2026_11_19_000003_create_stock_opname_lines_table.php:14-35](file://database/migrations/2026_11_19_000003_create_stock_opname_lines_table.php#L14-L35)
+- [2026_11_23_000001_create_external_item_mappings_table.php:14-27](file://database/migrations/2026_11_23_000001_create_external_item_mappings_table.php#L14-L27)
+- [2026_11_23_000002_create_external_synced_barangs_table.php:14-37](file://database/migrations/2026_11_23_000002_create_external_synced_barangs_table.php#L14-L37)
 
 ## Conclusion
-The RSV Helmet database schema enforces strong referential integrity, supports fractional quantities, and maintains an immutable movement ledger. It cleanly separates master data from transactional records and provides robust indexing for common queries. The design accommodates production planning, stocktaking, and procurement workflows while allowing extensibility through additional mappings and settings.
-
-[No sources needed since this section summarizes without analyzing specific files]
+The RSV Helmet database schema enforces strong referential integrity, supports fractional quantities, and maintains an immutable movement ledger. It cleanly separates master data from transactional records and provides robust indexing for common queries. The design accommodates production planning, stocktaking, and procurement workflows while allowing extensibility through additional mappings and settings. The enhanced external integration capabilities provide comprehensive synchronization with external barang systems, ensuring data consistency across systems.
 
 ## Appendices
 
@@ -606,21 +657,23 @@ The RSV Helmet database schema enforces strong referential integrity, supports f
 - Additive changes only: new tables and columns are added; existing columns are not renamed in place.
 - Column removals are explicit via dedicated migrations (e.g., removing quantity_reserved from inventory_balances).
 - Relationships are introduced gradually, adding foreign keys where needed (e.g., parent_movement_id, stock_opname_id, item_request_id on inventory_movements).
+- External integration migrations follow the same pattern, adding new tables for external system synchronization.
 
 **Section sources**
-- [2026_11_18_000001_add_parent_movement_id_to_inventory_movements_table.php:14-20](file://database/migrations/2026_11_18_000001_add_parent_movement_id_to_inventory_movements_table.php#L14-L20)
-- [2026_11_19_000004_add_stock_opname_id_to_inventory_movements_table.php:14-20](file://database/migrations/2026_11_19_000004_add_stock_opname_id_to_inventory_movements_table.php#L14-L20)
-- [2026_11_19_000011_add_item_request_id_to_inventory_movements_table.php:14-20](file://database/migrations/2026_11_19_000011_add_item_request_id_to_inventory_movements_table.php#L14-L20)
+- [2026_11_18_000002_drop_quantity_reserved_from_inventory_balances_table.php:14-20](file://database/migrations/2026_11_18_000002_drop_quantity_reserved_from_inventory_balances_table.php#L14-L20)
+- [2026_11_23_000001_create_external_item_mappings_table.php:14-27](file://database/migrations/2026_11_23_000001_create_external_item_mappings_table.php#L14-L27)
+- [2026_11_23_000002_create_external_synced_barangs_table.php:14-37](file://database/migrations/2026_11_23_000002_create_external_synced_barangs_table.php#L14-L37)
 
 ### Data Validation Rules and Business Constraints
 - Uniqueness:
-  - items.item_code, items.barcode, warehouses.code, production_batches.batch_code, stock_opnames.code, external_item_mappings.external_variant_id.
+  - items.item_code, items.barcode, warehouses.code, production_batches.batch_code, stock_opnames.code, external_item_mappings.external_variant_id, external_synced_barangs.kode_barang.
 - Referential integrity:
-  - Foreign keys enforce valid relationships across items, warehouses, users, production_batches, stock_opnames, item_requests.
+  - Foreign keys enforce valid relationships across items, warehouses, users, production_batches, stock_opnames, item_requests, and external systems.
 - Domain constraints:
   - inventory_balances unique per (warehouse_id, item_id).
   - production_batch_items and production_batch_materials unique per (production_batch_id, item_id).
   - stock_opname_lines unique per (stock_opname_id, item_id).
+  - external_item_mappings unique per external_variant_id.
 - Numeric precision:
   - Decimal(15,3) used for all quantity-related fields to support fractional units.
 
@@ -630,23 +683,24 @@ The RSV Helmet database schema enforces strong referential integrity, supports f
 - [2026_11_16_000002_create_inventory_balances_table.php:14-30](file://database/migrations/2026_11_16_000002_create_inventory_balances_table.php#L14-L30)
 - [2026_11_17_000002_create_production_batches_table.php:14-34](file://database/migrations/2026_11_17_000002_create_production_batches_table.php#L14-L34)
 - [2026_11_17_000003_create_production_batch_items_table.php:14-26](file://database/migrations/2026_11_17_000003_create_production_batch_items_table.php#L14-L26)
-- [2026_11_17_000004_create_production_batch_materials_table.php:14-26](file://database/migrations/2026_11_17_000004_create_production_batch_materials_table.php#L14-L26)
 - [2026_11_19_000002_create_stock_opnames_table.php:14-34](file://database/migrations/2026_11_19_000002_create_stock_opnames_table.php#L14-L34)
 - [2026_11_19_000003_create_stock_opname_lines_table.php:14-35](file://database/migrations/2026_11_19_000003_create_stock_opname_lines_table.php#L14-L35)
 - [2026_11_23_000001_create_external_item_mappings_table.php:14-27](file://database/migrations/2026_11_23_000001_create_external_item_mappings_table.php#L14-L27)
+- [2026_11_23_000002_create_external_synced_barangs_table.php:14-37](file://database/migrations/2026_11_23_000002_create_external_synced_barangs_table.php#L14-L37)
 
 ### Data Lifecycle, Archival, and Backup Considerations
 - Lifecycle:
   - Master data (items, warehouses, divisions) is long-lived and relatively static.
   - Transactional data (movements, batch lines, opname lines) grows continuously.
+  - External synchronization data (external_synced_barangs) grows with external system usage.
 - Archival:
   - Consider archiving old inventory_movements partitions by occurred_at to keep active tables lean.
   - Retain historical stock opnames and their lines for auditability.
+  - Archive external_synced_barangs records after successful reconciliation periods.
 - Backup:
   - Back up both master and transactional schemas regularly.
   - Ensure point-in-time recovery for movement-ledger continuity.
-
-[No sources needed since this section provides general guidance]
+  - Include external synchronization logs for audit and reconciliation purposes.
 
 ### Extending the Schema
 - Adding new movement types:
@@ -658,5 +712,7 @@ The RSV Helmet database schema enforces strong referential integrity, supports f
   - Link new operations to inventory_movements for auditability.
 - External integrations:
   - Extend external_item_mappings or create new mapping tables as needed.
-
-[No sources needed since this section provides general guidance]
+  - Add corresponding external_synced_barangs records for synchronization tracking.
+- Performance optimization:
+  - Add appropriate indexes for new query patterns.
+  - Consider partitioning strategies for high-volume tables.

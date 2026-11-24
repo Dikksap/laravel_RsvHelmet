@@ -31,7 +31,7 @@ class ExternalItemMappingResource extends Resource
 {
     protected static ?string $model = ExternalItemMapping::class;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Gudang';
+    protected static string|UnitEnum|null $navigationGroup = 'Integrasi Eksternal';
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-arrows-right-left';
 
@@ -41,7 +41,7 @@ class ExternalItemMappingResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Mapping Barang Eksternal';
 
-    protected static ?int $navigationSort = 35;
+    protected static ?int $navigationSort = 20;
 
     protected static ?string $recordTitleAttribute = 'external_variant_code';
 

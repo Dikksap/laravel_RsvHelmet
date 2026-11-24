@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Filament\Pages\StockCard;
 use App\Filament\Resources\InventoryMovements\Pages\CreateInventoryMovement;
 use App\Filament\Resources\InventoryMovements\Pages\ListInventoryMovements;
+use App\Models\ExternalItemMapping;
+use App\Models\ExternalSyncedBarang;
 use App\Models\InventoryBalance;
 use App\Models\InventoryMovement;
 use App\Models\Item;
@@ -14,8 +16,10 @@ use App\Models\ProductionBatchItem;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\BatchRequirementService;
+use App\Services\ExternalBarangSyncService;
 use App\Services\StockMovementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -209,6 +213,7 @@ class StockMovementTest extends TestCase
         Livewire::test(CreateInventoryMovement::class)
             ->fillForm([
                 'type' => InventoryMovement::TYPE_IN_PRODUCTION,
+                'source_external' => false,
                 'warehouse_id' => $outputWarehouse->getKey(),
                 'item_id' => $product->getKey(),
                 'production_batch_id' => $batch->getKey(),
@@ -251,6 +256,7 @@ class StockMovementTest extends TestCase
         Livewire::test(CreateInventoryMovement::class)
             ->fillForm([
                 'type' => InventoryMovement::TYPE_IN_PRODUCTION,
+                'source_external' => false,
                 'warehouse_id' => $outputWarehouse->getKey(),
                 'item_id' => $product->getKey(),
                 'production_batch_id' => $batch->getKey(),
@@ -275,6 +281,7 @@ class StockMovementTest extends TestCase
         Livewire::test(CreateInventoryMovement::class)
             ->fillForm([
                 'type' => InventoryMovement::TYPE_IN_PRODUCTION,
+                'source_external' => false,
                 'warehouse_id' => $outputWarehouse->getKey(),
                 'item_id' => $product->getKey(),
                 'production_batch_id' => $batch->getKey(),
@@ -287,6 +294,383 @@ class StockMovementTest extends TestCase
         $this->assertSame(0, InventoryMovement::query()->count());
         $this->assertSame(5.0, (float) $this->balanceOf($first, $materialWarehouse)->quantity_on_hand);
         $this->assertSame(100.0, (float) $this->balanceOf($second, $materialWarehouse)->quantity_on_hand);
+    }
+
+    public function test_production_output_can_be_recorded_from_external_api(): void
+    {
+        [$product, $first, $second, $batch, $materialWarehouse, $outputWarehouse] = $this->productionFixture();
+
+        ExternalItemMapping::create([
+            'item_id' => $product->getKey(),
+            'external_variant_id' => 5,
+            'external_variant_code' => 'WB005',
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            '*api/public/barang/rekap-variant*' => Http::response([
+                'data' => [],
+                'statuses' => ['REGISTER', 'FINISHGOOD'],
+                'total' => 0,
+            ], 200),
+            '*api/public/barang*' => Http::response([
+                'data' => [
+                    [
+                        'id' => 401,
+                        'kodeBarang' => 'BC001-WB005-241126-0401',
+                        'variantId' => 5,
+                        'status' => 'FINISHGOOD',
+                        'finishGoodAt' => '2026-11-22T10:00:00.000Z',
+                    ],
+                    [
+                        'id' => 402,
+                        'kodeBarang' => 'BC001-WB005-241126-0402',
+                        'variantId' => 5,
+                        'status' => 'FINISHGOOD',
+                        'finishGoodAt' => '2026-11-23T10:00:00.000Z',
+                    ],
+                ],
+                'meta' => ['totalPages' => 1],
+            ], 200),
+        ]);
+
+        Livewire::test(CreateInventoryMovement::class)
+            ->fillForm([
+                'type' => InventoryMovement::TYPE_IN_PRODUCTION,
+                'source_external' => true,
+                'warehouse_id' => $outputWarehouse->getKey(),
+                'production_batch_id' => $batch->getKey(),
+                'external_variant_id' => 5,
+                'external_status' => 'FINISHGOOD',
+                'tanggal_awal' => '2026-11-01',
+                'tanggal_akhir' => '2026-11-30',
+                'occurred_at' => now(),
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $output = InventoryMovement::query()
+            ->where('type', InventoryMovement::TYPE_IN_PRODUCTION)
+            ->sole();
+
+        $this->assertEquals(2.0, (float) $output->quantity);
+        $this->assertSame($batch->getKey(), $output->production_batch_id);
+        $this->assertSame(0, InventoryMovement::query()
+            ->where('type', InventoryMovement::TYPE_OUT_PRODUCTION)
+            ->count());
+        $this->assertSame(2.0, (float) $this->balanceOf($product, $outputWarehouse)->quantity_on_hand);
+        $this->assertSame(2, ExternalSyncedBarang::query()->count());
+    }
+
+    public function test_production_output_can_be_pulled_by_external_batch_code(): void
+    {
+        [$product, $first, $second, $batch, $materialWarehouse, $outputWarehouse] = $this->productionFixture();
+
+        $secondProduct = Item::factory()->create([
+            'item_code' => 'G00009',
+            'item_name' => 'Windbreaker Motif Navy MD',
+        ]);
+
+        ExternalItemMapping::create([
+            'item_id' => $product->getKey(),
+            'external_variant_id' => 5,
+            'external_variant_code' => 'WB005',
+            'is_active' => true,
+        ]);
+
+        ExternalItemMapping::create([
+            'item_id' => $secondProduct->getKey(),
+            'external_variant_id' => 6,
+            'external_variant_code' => 'WB006',
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            '*api/public/barang/rekap-variant*' => Http::response([
+                'data' => [],
+                'statuses' => ['REGISTER', 'FINISHGOOD'],
+                'total' => 0,
+            ], 200),
+            '*api/public/barang*' => Http::response([
+                'data' => [
+                    [
+                        'id' => 411,
+                        'kodeBarang' => 'BC001-WB005-241126-0411',
+                        'variantId' => 5,
+                        'status' => 'FINISHGOOD',
+                        'finishGoodAt' => '2026-11-22T10:00:00.000Z',
+                    ],
+                    [
+                        'id' => 412,
+                        'kodeBarang' => 'BC001-WB005-241126-0412',
+                        'variantId' => 5,
+                        'status' => 'FINISHGOOD',
+                        'finishGoodAt' => '2026-11-22T11:00:00.000Z',
+                    ],
+                    [
+                        'id' => 413,
+                        'kodeBarang' => 'BC001-WB006-241126-0413',
+                        'variantId' => 6,
+                        'status' => 'FINISHGOOD',
+                        'finishGoodAt' => '2026-11-23T10:00:00.000Z',
+                    ],
+                ],
+                'meta' => ['totalPages' => 1],
+            ], 200),
+        ]);
+
+        Livewire::test(CreateInventoryMovement::class)
+            ->fillForm([
+                'type' => InventoryMovement::TYPE_IN_PRODUCTION,
+                'source_external' => true,
+                'warehouse_id' => $outputWarehouse->getKey(),
+                'production_batch_id' => $batch->getKey(),
+                'external_batch_code' => 'BC001',
+                'external_status' => 'FINISHGOOD',
+                'tanggal_awal' => '2026-11-01',
+                'tanggal_akhir' => '2026-11-30',
+                'occurred_at' => now(),
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $movements = InventoryMovement::query()
+            ->where('type', InventoryMovement::TYPE_IN_PRODUCTION)
+            ->get();
+
+        $this->assertCount(2, $movements);
+
+        $productMovement = $movements->firstWhere('item_id', $product->getKey());
+        $this->assertEquals(2.0, (float) $productMovement->quantity);
+        $this->assertSame($batch->getKey(), $productMovement->production_batch_id);
+
+        $secondMovement = $movements->firstWhere('item_id', $secondProduct->getKey());
+        $this->assertEquals(1.0, (float) $secondMovement->quantity);
+
+        $this->assertSame(0, InventoryMovement::query()
+            ->where('type', InventoryMovement::TYPE_OUT_PRODUCTION)
+            ->count());
+        $this->assertSame(3, ExternalSyncedBarang::query()->count());
+        $this->assertSame(2.0, (float) $this->balanceOf($product, $outputWarehouse)->quantity_on_hand);
+        $this->assertSame(1.0, (float) $this->balanceOf($secondProduct, $outputWarehouse)->quantity_on_hand);
+    }
+
+    public function test_production_output_variant_pull_respects_entered_quantity(): void
+    {
+        [$product, $first, $second, $batch, $materialWarehouse, $outputWarehouse] = $this->productionFixture();
+
+        ExternalItemMapping::create([
+            'item_id' => $product->getKey(),
+            'external_variant_id' => 5,
+            'external_variant_code' => 'WB005',
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            '*api/public/barang/rekap-variant*' => Http::response([
+                'data' => [],
+                'statuses' => ['REGISTER', 'FINISHGOOD'],
+                'total' => 0,
+            ], 200),
+            '*api/public/barang*' => Http::response([
+                'data' => [
+                    [
+                        'id' => 421,
+                        'kodeBarang' => 'BC001-WB005-241126-0421',
+                        'variantId' => 5,
+                        'status' => 'FINISHGOOD',
+                        'finishGoodAt' => '2026-11-22T10:00:00.000Z',
+                    ],
+                    [
+                        'id' => 422,
+                        'kodeBarang' => 'BC001-WB005-241126-0422',
+                        'variantId' => 5,
+                        'status' => 'FINISHGOOD',
+                        'finishGoodAt' => '2026-11-22T11:00:00.000Z',
+                    ],
+                ],
+                'meta' => ['totalPages' => 1],
+            ], 200),
+        ]);
+
+        Livewire::test(CreateInventoryMovement::class)
+            ->fillForm([
+                'type' => InventoryMovement::TYPE_IN_PRODUCTION,
+                'source_external' => true,
+                'warehouse_id' => $outputWarehouse->getKey(),
+                'production_batch_id' => $batch->getKey(),
+                'external_variant_id' => 5,
+                'external_quantity' => 1,
+                'external_status' => 'FINISHGOOD',
+                'occurred_at' => now(),
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $output = InventoryMovement::query()
+            ->where('type', InventoryMovement::TYPE_IN_PRODUCTION)
+            ->sole();
+
+        $this->assertEquals(1.0, (float) $output->quantity);
+        $this->assertSame(1, ExternalSyncedBarang::query()->count());
+        $this->assertDatabaseHas('external_synced_barangs', ['kode_barang' => 'BC001-WB005-241126-0421']);
+        $this->assertDatabaseMissing('external_synced_barangs', ['kode_barang' => 'BC001-WB005-241126-0422']);
+        $this->assertSame(1.0, (float) $this->balanceOf($product, $outputWarehouse)->quantity_on_hand);
+    }
+
+    public function test_production_output_batch_pull_respects_entered_quantity_per_variant(): void
+    {
+        [$product, $first, $second, $batch, $materialWarehouse, $outputWarehouse] = $this->productionFixture();
+
+        $secondProduct = Item::factory()->create([
+            'item_code' => 'G00009',
+            'item_name' => 'Windbreaker Motif Navy MD',
+        ]);
+
+        ExternalItemMapping::create([
+            'item_id' => $product->getKey(),
+            'external_variant_id' => 5,
+            'external_variant_code' => 'WB005',
+            'is_active' => true,
+        ]);
+
+        ExternalItemMapping::create([
+            'item_id' => $secondProduct->getKey(),
+            'external_variant_id' => 6,
+            'external_variant_code' => 'WB006',
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            '*api/public/barang/rekap-variant*' => Http::response([
+                'data' => [],
+                'statuses' => ['REGISTER', 'FINISHGOOD'],
+                'total' => 0,
+            ], 200),
+            '*api/public/barang*' => Http::response([
+                'data' => [
+                    [
+                        'id' => 431,
+                        'kodeBarang' => 'BC001-WB005-241126-0431',
+                        'variantId' => 5,
+                        'status' => 'FINISHGOOD',
+                        'finishGoodAt' => '2026-11-22T10:00:00.000Z',
+                    ],
+                    [
+                        'id' => 432,
+                        'kodeBarang' => 'BC001-WB005-241126-0432',
+                        'variantId' => 5,
+                        'status' => 'FINISHGOOD',
+                        'finishGoodAt' => '2026-11-22T11:00:00.000Z',
+                    ],
+                    [
+                        'id' => 433,
+                        'kodeBarang' => 'BC001-WB005-241126-0433',
+                        'variantId' => 5,
+                        'status' => 'FINISHGOOD',
+                        'finishGoodAt' => '2026-11-22T12:00:00.000Z',
+                    ],
+                    [
+                        'id' => 434,
+                        'kodeBarang' => 'BC001-WB006-241126-0434',
+                        'variantId' => 6,
+                        'status' => 'FINISHGOOD',
+                        'finishGoodAt' => '2026-11-23T10:00:00.000Z',
+                    ],
+                ],
+                'meta' => ['totalPages' => 1],
+            ], 200),
+        ]);
+
+        Livewire::test(CreateInventoryMovement::class)
+            ->fillForm([
+                'type' => InventoryMovement::TYPE_IN_PRODUCTION,
+                'source_external' => true,
+                'warehouse_id' => $outputWarehouse->getKey(),
+                'production_batch_id' => $batch->getKey(),
+                'external_batch_code' => 'BC001',
+                'tanggal_awal' => '2026-11-01',
+                'tanggal_akhir' => '2026-11-30',
+                'external_status' => 'FINISHGOOD',
+                'external_quantities' => [
+                    ['external_variant_id' => 5, 'max_quantity' => 3, 'quantity' => 1],
+                    ['external_variant_id' => 6, 'max_quantity' => 1, 'quantity' => 0],
+                ],
+                'occurred_at' => now(),
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $movement = InventoryMovement::query()
+            ->where('type', InventoryMovement::TYPE_IN_PRODUCTION)
+            ->sole();
+
+        $this->assertSame($product->getKey(), $movement->item_id);
+        $this->assertEquals(1.0, (float) $movement->quantity);
+        $this->assertSame(1, ExternalSyncedBarang::query()->count());
+        $this->assertDatabaseHas('external_synced_barangs', ['kode_barang' => 'BC001-WB005-241126-0431']);
+        $this->assertDatabaseMissing('external_synced_barangs', ['kode_barang' => 'BC001-WB006-241126-0434']);
+        $this->assertSame(0, InventoryMovement::query()
+            ->where('item_id', $secondProduct->getKey())
+            ->count());
+    }
+
+    public function test_deleting_external_output_releases_units_for_the_next_pull(): void
+    {
+        [$product, $first, $second, $batch, $materialWarehouse, $outputWarehouse] = $this->productionFixture();
+
+        ExternalItemMapping::create([
+            'item_id' => $product->getKey(),
+            'external_variant_id' => 5,
+            'external_variant_code' => 'WB005',
+            'is_active' => true,
+        ]);
+
+        Http::fake([
+            '*api/public/barang*' => Http::response([
+                'data' => [
+                    [
+                        'id' => 441,
+                        'kodeBarang' => 'BC001-WB005-241126-0441',
+                        'variantId' => 5,
+                        'status' => 'FINISHGOOD',
+                        'finishGoodAt' => '2026-11-22T10:00:00.000Z',
+                    ],
+                    [
+                        'id' => 442,
+                        'kodeBarang' => 'BC001-WB005-241126-0442',
+                        'variantId' => 5,
+                        'status' => 'FINISHGOOD',
+                        'finishGoodAt' => '2026-11-22T11:00:00.000Z',
+                    ],
+                ],
+                'meta' => ['totalPages' => 1],
+            ], 200),
+        ]);
+
+        $syncService = app(ExternalBarangSyncService::class);
+        $movementService = app(StockMovementService::class);
+
+        $first = $syncService->syncVariantOutput($outputWarehouse, 5, [
+            'production_batch_id' => $batch->getKey(),
+        ]);
+
+        $this->assertSame(2, $first['synced_count']);
+        $this->assertSame(2, ExternalSyncedBarang::query()->count());
+
+        $movementService->delete($first['movement']);
+
+        $this->assertSame(0, InventoryMovement::query()->count());
+        $this->assertSame(0, ExternalSyncedBarang::query()->count());
+        $this->assertSame(0.0, (float) $this->balanceOf($product, $outputWarehouse)->quantity_on_hand);
+
+        $second = $syncService->syncVariantOutput($outputWarehouse, 5, [
+            'production_batch_id' => $batch->getKey(),
+        ]);
+
+        $this->assertSame(2, $second['synced_count']);
+        $this->assertEquals(2.0, (float) $second['movement']->quantity);
+        $this->assertSame(2, ExternalSyncedBarang::query()->count());
     }
 
     public function test_deleting_production_output_restores_output_and_material_stock(): void

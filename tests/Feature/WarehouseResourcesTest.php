@@ -6,10 +6,15 @@ use App\Filament\Exports\ItemExporter;
 use App\Filament\Imports\ItemImporter;
 use App\Filament\Pages\BatchRealization;
 use App\Filament\Pages\BomBuilder;
+use App\Filament\Pages\DaftarBarangEksternal;
+use App\Filament\Pages\InventoryBalanceSummary;
+use App\Filament\Pages\ItemRequestSettings;
 use App\Filament\Pages\StockCard;
 use App\Filament\Resources\Brands\BrandResource;
 use App\Filament\Resources\Divisions\DivisionResource;
 use App\Filament\Resources\Divisions\Pages\CreateDivision;
+use App\Filament\Resources\ExternalItemMappings\ExternalItemMappingResource;
+use App\Filament\Resources\ExternalSyncedBarangs\ExternalSyncedBarangResource;
 use App\Filament\Resources\InventoryBalances\InventoryBalanceResource;
 use App\Filament\Resources\InventoryMovements\InventoryMovementResource;
 use App\Filament\Resources\ItemAttributes\ItemAttributeResource;
@@ -22,6 +27,7 @@ use App\Filament\Resources\Items\Pages\ListItems;
 use App\Filament\Resources\Items\RelationManagers\VariantMappingsRelationManager;
 use App\Filament\Resources\ItemTypes\ItemTypeResource;
 use App\Filament\Resources\ProductionBatches\ProductionBatchResource;
+use App\Filament\Resources\StockOpnames\StockOpnameResource;
 use App\Filament\Resources\Uoms\UomResource;
 use App\Filament\Resources\Warehouses\WarehouseResource;
 use App\Models\Brand;
@@ -38,6 +44,7 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ExportAction;
 use Filament\Actions\ImportAction;
 use Filament\Facades\Filament;
+use Filament\Navigation\NavigationGroup;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -74,22 +81,42 @@ class WarehouseResourcesTest extends TestCase
         }
     }
 
-    public function test_stock_and_production_navigation_groups_are_separated(): void
+    public function test_stock_request_external_and_production_navigation_groups_are_separated(): void
     {
         $resources = [
-            InventoryBalanceResource::class => ['Gudang', 'Stok Gudang'],
+            InventoryBalanceSummary::class => ['Gudang', 'Total Stok Gudang'],
+            InventoryBalanceResource::class => ['Gudang', 'Stok per Gudang'],
             InventoryMovementResource::class => ['Gudang', 'Transaksi Stok'],
-            ItemRequestResource::class => ['Gudang', 'Permintaan Barang'],
             StockCard::class => ['Gudang', 'Kartu Stok'],
+            StockOpnameResource::class => ['Gudang', 'Stok Opname'],
+            ItemRequestResource::class => ['Permintaan Barang', 'Daftar Permintaan'],
+            ItemRequestSettings::class => ['Permintaan Barang', 'Pengaturan Permintaan'],
             ProductionBatchResource::class => ['Produksi', 'Batch Produksi'],
             BomBuilder::class => ['Produksi', 'Komposisi Barang'],
             BatchRealization::class => ['Produksi', 'Laporan Realisasi'],
+            DaftarBarangEksternal::class => ['Integrasi Eksternal', 'Barang Eksternal per Tanggal'],
+            ExternalItemMappingResource::class => ['Integrasi Eksternal', 'Mapping Barang Eksternal'],
+            ExternalSyncedBarangResource::class => ['Integrasi Eksternal', 'Riwayat Unit Masuk'],
         ];
 
         foreach ($resources as $resource => [$group, $label]) {
             $this->assertSame($group, $resource::getNavigationGroup());
             $this->assertSame($label, $resource::getNavigationLabel());
             $this->assertNotNull($resource::getNavigationIcon());
+        }
+    }
+
+    public function test_admin_navigation_groups_are_ordered_and_collapsible(): void
+    {
+        $groups = Filament::getPanel('admin')->getNavigationGroups();
+
+        $this->assertSame(
+            ['Gudang', 'Permintaan Barang', 'Produksi', 'Integrasi Eksternal', 'Data Master'],
+            array_map(fn (NavigationGroup $group): string => (string) $group->getLabel(), $groups),
+        );
+
+        foreach ($groups as $group) {
+            $this->assertTrue($group->isCollapsible());
         }
     }
 
@@ -130,14 +157,20 @@ class WarehouseResourcesTest extends TestCase
 
         foreach ([
             'Gudang',
+            'Permintaan Barang',
             'Produksi',
+            'Integrasi Eksternal',
             'Data Master',
-            'Stok Gudang',
+            'Total Stok Gudang',
+            'Stok per Gudang',
             'Transaksi Stok',
             'Kartu Stok',
+            'Daftar Permintaan',
+            'Pengaturan Permintaan',
             'Batch Produksi',
             'Komposisi Barang',
             'Laporan Realisasi',
+            'Mapping Barang Eksternal',
             'Barang',
             'Daftar Gudang',
         ] as $label) {
@@ -154,14 +187,20 @@ class WarehouseResourcesTest extends TestCase
 
         $this->assertTrue($panel->hasSpaMode());
         $this->assertFalse($panel->isSidebarCollapsibleOnDesktop());
-        $this->assertFalse($panel->isSidebarFullyCollapsibleOnDesktop());
+        $this->assertTrue($panel->isSidebarFullyCollapsibleOnDesktop());
+        $this->assertSame('16rem', $panel->getSidebarWidth());
+
+        $this->get('/admin')
+            ->assertOk()
+            ->assertSee('fi-body-has-sidebar-fully-collapsible-on-desktop', escape: false)
+            ->assertSee('fi-topbar-collapse-sidebar-btn-ctn', escape: false);
     }
 
     public function test_admin_panel_uses_indonesian_locale(): void
     {
         $this->assertSame('id', app()->getLocale());
         $this->assertSame('Gudang', InventoryBalanceResource::getNavigationGroup());
-        $this->assertSame('Stok Gudang', InventoryBalanceResource::getNavigationLabel());
+        $this->assertSame('Stok per Gudang', InventoryBalanceResource::getNavigationLabel());
     }
 
     public function test_resource_index_pages_render(): void

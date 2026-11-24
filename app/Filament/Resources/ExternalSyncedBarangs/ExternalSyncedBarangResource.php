@@ -4,6 +4,7 @@ namespace App\Filament\Resources\ExternalSyncedBarangs;
 
 use App\Filament\Resources\ExternalSyncedBarangs\Pages\ListExternalSyncedBarangs;
 use App\Models\ExternalSyncedBarang;
+use App\Models\ProductionBatch;
 use App\Models\Warehouse;
 use BackedEnum;
 use Filament\Resources\Resource;
@@ -17,7 +18,7 @@ class ExternalSyncedBarangResource extends Resource
 {
     protected static ?string $model = ExternalSyncedBarang::class;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Gudang';
+    protected static string|UnitEnum|null $navigationGroup = 'Integrasi Eksternal';
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-cube';
 
@@ -27,7 +28,7 @@ class ExternalSyncedBarangResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Riwayat Unit Masuk';
 
-    protected static ?int $navigationSort = 36;
+    protected static ?int $navigationSort = 30;
 
     protected static ?string $recordTitleAttribute = 'kode_barang';
 
@@ -56,6 +57,10 @@ class ExternalSyncedBarangResource extends Resource
                 TextColumn::make('warehouse.name')
                     ->label('Gudang Penerima')
                     ->sortable(),
+                TextColumn::make('productionBatch.batch_code')
+                    ->label('Batch Produksi')
+                    ->placeholder('-')
+                    ->toggleable(),
                 TextColumn::make('status')
                     ->label('Status API')
                     ->badge()
@@ -85,6 +90,12 @@ class ExternalSyncedBarangResource extends Resource
                 SelectFilter::make('warehouse_id')
                     ->label('Gudang')
                     ->options(fn (): array => Warehouse::query()->pluck('name', 'id')->all()),
+                SelectFilter::make('production_batch_id')
+                    ->label('Batch Produksi')
+                    ->options(fn (): array => ProductionBatch::query()
+                        ->orderByDesc('created_at')
+                        ->pluck('batch_code', 'id')
+                        ->all()),
                 SelectFilter::make('status')
                     ->label('Status Eksternal')
                     ->options(fn (): array => ExternalSyncedBarang::query()

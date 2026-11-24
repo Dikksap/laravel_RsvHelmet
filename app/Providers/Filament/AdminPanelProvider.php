@@ -40,10 +40,18 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->spa()
+            ->sidebarFullyCollapsibleOnDesktop()
+            ->sidebarWidth('16rem')
             ->readOnlyRelationManagersOnResourceViewPagesByDefault(false)
             ->navigationGroups([
-                NavigationGroup::make('Gudang'),
-                NavigationGroup::make('Produksi'),
+                NavigationGroup::make('Gudang')
+                    ->collapsible(),
+                NavigationGroup::make('Permintaan Barang')
+                    ->collapsible(),
+                NavigationGroup::make('Produksi')
+                    ->collapsible(),
+                NavigationGroup::make('Integrasi Eksternal')
+                    ->collapsible(),
                 NavigationGroup::make('Data Master')
                     ->collapsible(),
             ])
