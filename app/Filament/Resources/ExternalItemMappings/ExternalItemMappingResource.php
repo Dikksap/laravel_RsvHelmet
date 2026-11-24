@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ExternalItemMappings;
 
+use App\Filament\Forms\Components\InfiniteSelect;
 use App\Filament\Resources\ExternalItemMappings\Pages\CreateExternalItemMapping;
 use App\Filament\Resources\ExternalItemMappings\Pages\EditExternalItemMapping;
 use App\Filament\Resources\ExternalItemMappings\Pages\ListExternalItemMappings;
@@ -24,7 +25,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 use UnitEnum;
 
 class ExternalItemMappingResource extends Resource

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\InventoryMovements;
 
+use App\Filament\Forms\Components\InfiniteSelect;
 use App\Filament\Resources\InventoryMovements\Pages\CreateInventoryMovement;
 use App\Filament\Resources\InventoryMovements\Pages\ListInventoryMovements;
 use App\Models\InventoryBalance;
@@ -32,7 +33,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\HtmlString;
 use Illuminate\Support\Number;
 use Illuminate\Validation\ValidationException;
-use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 use UnitEnum;
 
 class InventoryMovementResource extends Resource

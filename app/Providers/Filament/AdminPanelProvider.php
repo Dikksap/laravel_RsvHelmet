@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Auth\Login;
 use App\Filament\Pages\Dashboard;
 use App\Filament\Widgets\BatchProgressChart;
 use App\Filament\Widgets\BatchProgressTable;
@@ -33,7 +34,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->login()
+            ->login(Login::class)
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -59,6 +60,14 @@ class AdminPanelProvider extends PanelProvider
                 BatchProgressTable::class,
                 RecentCompletedBatchesTable::class,
             ])
+            ->renderHook(
+                PanelsRenderHook::SIMPLE_LAYOUT_START,
+                fn (): View => view('filament.partials.auth-brand-panel'),
+            )
+            ->renderHook(
+                PanelsRenderHook::SIMPLE_PAGE_START,
+                fn (): View => view('filament.partials.auth-lockup'),
+            )
             ->renderHook(
                 PanelsRenderHook::BODY_END,
                 fn (): View => view('filament.partials.infinite-scroll-spa-fix'),

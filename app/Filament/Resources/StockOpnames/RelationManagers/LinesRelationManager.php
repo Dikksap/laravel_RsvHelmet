@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\StockOpnames\RelationManagers;
 
 use App\Filament\Exports\StockOpnameLineExporter;
+use App\Filament\Forms\Components\InfiniteSelect;
 use App\Filament\Imports\StockOpnameLineImporter;
 use App\Models\InventoryBalance;
 use App\Models\Item;
@@ -22,7 +23,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
-use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 
 class LinesRelationManager extends RelationManager
 {

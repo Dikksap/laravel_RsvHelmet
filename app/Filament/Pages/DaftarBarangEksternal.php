@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Forms\Components\InfiniteSelect;
 use App\Models\ExternalItemMapping;
 use App\Models\ExternalSyncedBarang;
 use App\Models\Item;
@@ -22,7 +23,6 @@ use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Builder;
-use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 use UnitEnum;
 
 class DaftarBarangEksternal extends Page implements HasForms

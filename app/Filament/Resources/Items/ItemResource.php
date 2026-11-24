@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Items;
 
 use App\Filament\Exports\ItemExporter;
+use App\Filament\Forms\Components\InfiniteSelect;
 use App\Filament\Pages\BomBuilder;
 use App\Filament\Resources\Items\Pages\CreateItem;
 use App\Filament\Resources\Items\Pages\EditItem;
@@ -31,7 +32,6 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 use UnitEnum;
 
 class ItemResource extends Resource

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Items\RelationManagers;
 
+use App\Filament\Forms\Components\InfiniteSelect;
 use App\Models\Item;
 use App\Models\ItemComponent;
 use Closure;
@@ -18,7 +19,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
-use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 
 class ItemComponentsRelationManager extends RelationManager
 {

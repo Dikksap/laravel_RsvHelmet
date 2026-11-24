@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ItemRequests\RelationManagers;
 
+use App\Filament\Forms\Components\InfiniteSelect;
 use App\Models\Item;
 use App\Models\ItemRequestLine;
 use Filament\Actions\EditAction;
@@ -12,7 +13,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 
 class LinesRelationManager extends RelationManager
 {

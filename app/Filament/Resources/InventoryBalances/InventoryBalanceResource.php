@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\InventoryBalances;
 
+use App\Filament\Forms\Components\InfiniteSelect;
 use App\Filament\Resources\InventoryBalances\Pages\CreateInventoryBalance;
 use App\Filament\Resources\InventoryBalances\Pages\EditInventoryBalance;
 use App\Filament\Resources\InventoryBalances\Pages\ListInventoryBalances;
@@ -37,7 +38,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Number;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 use UnitEnum;
 
 class InventoryBalanceResource extends Resource

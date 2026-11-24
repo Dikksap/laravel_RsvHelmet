@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Forms\Components\InfiniteSelect;
 use App\Models\InventoryBalance;
 use App\Models\Item;
 use App\Models\ItemComponent;
@@ -19,7 +20,6 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
-use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use UnitEnum;
 

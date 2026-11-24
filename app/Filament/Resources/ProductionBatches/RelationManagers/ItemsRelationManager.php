@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ProductionBatches\RelationManagers;
 
+use App\Filament\Forms\Components\InfiniteSelect;
 use App\Models\Item;
 use App\Models\ProductionBatchItem;
 use App\Services\BatchRequirementService;
@@ -15,7 +16,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Validation\Rule;
-use MrPunyapal\FilamentInfiniteSelect\InfiniteSelect;
 
 class ItemsRelationManager extends RelationManager
 {
