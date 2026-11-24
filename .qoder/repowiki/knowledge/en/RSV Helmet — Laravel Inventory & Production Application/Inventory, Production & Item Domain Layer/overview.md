@@ -1,0 +1,1 @@
+Laravel Eloquent models and service layer implementing inventory tracking, production batch management, BOM explosion, stock movements, stocktaking, and external barang synchronization.

@@ -1,0 +1,15 @@
+schema_version: 1
+module_path: deployment_infrastructure
+title: Dockerized Deployment & CI/CD Infrastructure
+scope:
+    - docker/
+    - Dockerfile
+    - Dockerfile.prod
+    - docker-compose.yml
+    - docker-compose.prod.yml
+    - .github/workflows/ci-cd.yml
+    - docs/DEPLOYMENT.md
+    - templates/
+source_files: []
+depends_on: []
+related_to: []

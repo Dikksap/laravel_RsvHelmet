@@ -1,0 +1,1 @@
+Laravel Blade + Filament Panels v3 components, Livewire 3 (`wire:model.live.debounce`, `wire:click`), Alpine.js (`x-data`, `x-on:dragstart/drop`, `x-bind:class`) for client-side interactivity, and Tailwind CSS utility classes for styling.

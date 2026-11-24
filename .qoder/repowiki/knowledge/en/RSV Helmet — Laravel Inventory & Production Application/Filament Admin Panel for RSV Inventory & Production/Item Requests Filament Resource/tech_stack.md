@@ -1,0 +1,1 @@
+Filament v3 resources, forms, tables, infolists, and notifications; Livewire components; Laravel Eloquent models (`ItemRequest`, `ItemRequestLine`, `ItemRequestSetting`, `InventoryBalance`) and a domain service (`ItemRequestService`).

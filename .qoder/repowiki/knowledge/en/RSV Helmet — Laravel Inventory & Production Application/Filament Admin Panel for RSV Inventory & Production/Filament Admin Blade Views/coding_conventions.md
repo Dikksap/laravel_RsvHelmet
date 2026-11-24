@@ -1,0 +1,5 @@
+- Page views wrap content in `<x-filament-panels::page>` and delegate data/table rendering to a Livewire component via `{{ $this->table }}` or `{{ $this->form }}` rather than embedding raw HTML.
+- User-facing strings are written in Indonesian (e.g. 'Cari nama atau kode komponen', 'Simpan komposisi', 'Struktur BOM'), while Blade control structures remain in English.
+- Inline styles are scoped inside a single root element using CSS custom properties (e.g. the `.bom-app` block defines `--bom-*` tokens for light/dark themes) instead of global selectors.
+- Interactive inputs use Livewire's live-debounce pattern `wire:model.live.debounce.{N}ms="property"` for search fields and quantity inputs.
+- Reusable UI fragments are extracted as Blade partials under `partials/` and referenced by name without extension.

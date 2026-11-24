@@ -1,0 +1,8 @@
+Organized by Filament extension point under `app/Filament/`:
+- `Auth/Login.php` overrides the default Filament login to localize the subheading.
+- `Exports/*` and `Imports/*` are paired per domain entity (Item, ProductStock, ProductionBatchItem, StockOpnameLine) extending Filament's `Exporter`/`Importer`, each declaring `$model`, column mappings via `ExportColumn`/`ImportColumn`, synchronous job execution (`getJobConnection()` returns `'sync'`), and localized completion notifications.
+- `Forms/Components/InfiniteSelect.php` wraps `MrPunyapal\FilamentInfiniteSelect\InfiniteSelect`, overriding `getOptionsForJs` / `getSearchResultsForJs` with `#[Exposed]` + `#[Renderless]` Livewire attributes to support paginated options.
+- `Widgets/*` extends Filament's `ChartWidget` / `TableWidget` and delegates data loading to `App\Services\BatchProgressService`, presenting batch planned vs actual metrics.
+- `Pages/*` are standalone Filament `Page`s implementing tables for production-realization reporting, navigation grouped under 'Produksi'.
+- `Resources/Pages/InfiniteScrollListRecords.php` is an abstract base that mixes in `Fibtegis\FilamentInfiniteScroll\Concerns\InteractsWithInfiniteScroll` so resource list pages can opt into infinite scrolling.
+Dependency direction: this module depends on `App\Models`, `App\Services`, and third-party Filament packages; it does not expose its own interfaces — consumers register these classes through Filament's auto-discovery or explicit registration.

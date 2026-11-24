@@ -1,0 +1,6 @@
+Each entity (Brands, Divisions, ItemTypes, ItemCategories, ItemAttributes) is a self-contained Filament Resource under `app/Filament/Resources/<Entity>/` with the same internal layout:
+- `<Entity>Resource.php` extends `Filament\Resources\Resource`, declares the Eloquent model via `$model`, configures navigation (`navigationGroup = 'Data Master'`, `navigationIcon`, `navigationLabel`, `navigationSort`, `recordTitleAttribute`) and implements `form()`, `table()`, `getPages()`.
+- `Pages/` subdirectory holds three page classes per resource: `Create<Entity>.php`, `Edit<Entity>.php`, `List<Entitys>.php`, registered through `getPages()` using Filament's route-based registration.
+- `ItemAttributes` additionally has a `RelationManagers/ValuesRelationManager.php` extending `Filament\Resources\RelationManagers\RelationManager` to manage the child `values` relationship inline on the parent record.
+
+Dependency direction is one-way: resources depend only on their sibling `App\Models\*` classes and on Filament framework classes; there are no cross-resource dependencies. All UI labels are localized in Indonesian (e.g. 'Merek', 'Atribut Barang', 'Nilai').

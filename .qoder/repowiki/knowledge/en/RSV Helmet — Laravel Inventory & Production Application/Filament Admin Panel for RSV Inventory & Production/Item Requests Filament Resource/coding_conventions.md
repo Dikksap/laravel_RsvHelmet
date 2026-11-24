@@ -1,0 +1,6 @@
+- Approval/rejection workflows are exposed as static factory methods on the Resource (`approveAction`, `rejectAction`) returning Filament `Action` instances, then reused both in table record actions and page header actions.
+- Business mutations are delegated to `app(ItemRequestService::class)->...` inside the action's closure rather than mutating models directly in the Resource.
+- Validation failures from the service are caught as `ValidationException`, surfaced via a persistent danger `Notification`, and the action is halted with `$action->halt()`.
+- Post-action UI refresh is centralized in a private `refreshAfterAction` helper that calls `$record->refresh()` and conditionally invokes `$livewire->refreshFormData($statePaths)`.
+- Read-only fields in the detail form use the paired pattern `->disabled()->dehydrated(false)` so they display data without being submitted back.
+- Status columns and filters derive their labels and colors from model constants via `Model::statusOptions()` / `Model::APPROVAL_*` match expressions rather than hard-coded strings.

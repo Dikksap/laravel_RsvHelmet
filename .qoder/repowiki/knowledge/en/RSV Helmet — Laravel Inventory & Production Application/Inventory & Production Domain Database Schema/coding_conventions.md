@@ -1,0 +1,5 @@
+- Migration classes implement both `up()` and `down()` methods, with `down()` calling `Schema::dropIfExists(...)` mirroring the create table name.
+- Foreign key constraints are declared via `$table->foreignId(...)->constrained(...)->restrictOnDelete()` / `nullOnDelete()` / `cascadeOnDelete()` rather than relying on Laravel's default cascade behavior.
+- Seeders use `Model::updateOrCreate([...], [...])` keyed by a natural code or name column to make seeding idempotent across runs.
+- Factories extend `Illuminate\Database\Eloquent\Factories\Factory`, declare `protected $model = Model::class`, and expose named state methods (e.g. `withXxx`, `variantOf`, `parent`) returning `static` to compose related records.
+- Core identifiers use UUIDs (`$table->uuid('id')->primary()`) while business codes use fixed-length strings with `unique()` constraints (e.g. `item_code` varchar(50)).

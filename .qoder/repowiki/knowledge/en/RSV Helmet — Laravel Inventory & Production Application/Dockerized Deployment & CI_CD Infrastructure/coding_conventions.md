@@ -1,0 +1,4 @@
+- Environment variables in compose files use `${VAR:-default}` for defaults and `${VAR:?mandatory error message}` for required secrets, keeping configuration explicit and self-documenting.
+- Multi-stage Dockerfiles separate concerns into named stages (`composer-builder`, `frontend-builder`, `production`) and copy artifacts between stages rather than re-running installs.
+- Runtime initialization is centralized in an entrypoint script that performs idempotent setup (mkdir/chown, conditional migrations, cache warmup) before delegating to the main process via `exec "$@"`.
+- Supervisor-managed processes are ordered by priority (php-fpm < nginx < queue-worker) so dependencies start first and background workers restart automatically.

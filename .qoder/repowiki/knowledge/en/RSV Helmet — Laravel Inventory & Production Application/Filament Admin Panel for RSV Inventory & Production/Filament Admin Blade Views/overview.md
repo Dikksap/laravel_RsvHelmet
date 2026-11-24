@@ -1,0 +1,1 @@
+Blade templates for Filament admin pages, reusable table column components, and authentication panel partials used by the RSV Helmet inventory & production system.

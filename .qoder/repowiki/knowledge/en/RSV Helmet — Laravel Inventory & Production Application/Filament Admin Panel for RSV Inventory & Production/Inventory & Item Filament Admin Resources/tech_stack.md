@@ -1,0 +1,1 @@
+Filament v3 resource layer over Laravel Eloquent; uses Heroicons (`heroicon-o-*`), a custom `App\Filament\Forms\Components\InfiniteSelect` for paginated autocomplete selects, and `App\Services\StockMovementService` as the single source of truth for stock mutations.

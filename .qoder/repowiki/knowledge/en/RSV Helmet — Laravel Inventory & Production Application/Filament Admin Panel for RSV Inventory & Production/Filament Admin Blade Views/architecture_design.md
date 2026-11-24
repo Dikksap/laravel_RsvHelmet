@@ -1,0 +1,6 @@
+Three flat sub-folders under `resources/views/filament/` with no PHP code:
+- `pages/` — full-page Blade templates that extend `<x-filament-panels::page>` and render a Livewire component via `{{ $this->table }}` or `{{ $this->form }}`. Most are thin shells (e.g. `stock-card.blade.php`) delegating rendering to a Livewire page class; `bom-builder.blade.php` is the exception: it contains the entire interactive BOM editor UI (library sidebar, tree grid, shopping list tab) with inline CSS variables scoped to `.bom-app`, Alpine.js drag-and-drop (`x-on:dragstart/drop`), and Wire `wire:click` / `wire:model.live.debounce` bindings.
+- `tables/columns/` — custom Filament Table Column view overrides (e.g. `progress-bar.blade.php` renders an ARIA-compliant progress bar using Tailwind utility classes).
+- `partials/` — shared auth-panel branding assets (`auth-brand-panel.blade.php`, `auth-lockup.blade.php`) and a small SPA fix snippet (`infinite-scroll-spa-fix.blade.php`).
+
+Dependency direction is one-way: views depend on Filament Panel components (`<x-filament-panels::page>`, `<x-filament::button>`, `<x-filament::icon>`) and Livewire/Wire directives; they do not import each other except via Blade's implicit include path resolution.

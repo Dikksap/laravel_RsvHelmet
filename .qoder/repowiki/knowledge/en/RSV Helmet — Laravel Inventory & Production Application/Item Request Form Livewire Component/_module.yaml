@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: livewire_components
+title: Item Request Form Livewire Component
+scope:
+    - app/Livewire/
+    - resources/views/livewire/
+source_files: []
+depends_on: []
+related_to:
+    - path: business_domain
+    - path: test_suite

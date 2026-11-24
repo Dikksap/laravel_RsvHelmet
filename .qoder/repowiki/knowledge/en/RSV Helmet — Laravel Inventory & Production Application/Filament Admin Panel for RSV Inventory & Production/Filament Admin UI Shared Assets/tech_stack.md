@@ -1,0 +1,1 @@
+Filament v3 (Actions Imports/Exports, Widgets, Pages, Tables), Livewire `#[Exposed]`/`#[Renderless]` attributes, third-party `MrPunyapal/FilamentInfiniteSelect` and `Fibtegis/FilamentInfiniteScroll` packages.

@@ -1,0 +1,1 @@
+Laravel 13.x with PHP 8.4, Filament 5 for the admin panel, Livewire for the item-request form, Tailwind CSS 4 + Vite 8 for frontend assets, MariaDB 11 as the database, Docker Compose for local/dev orchestration, and GitHub Container Registry (GHCR) for production images.

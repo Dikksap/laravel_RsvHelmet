@@ -1,0 +1,8 @@
+schema_version: 1
+module_path: filament_admin_ui/filament_views
+title: Filament Admin Blade Views
+scope:
+    - resources/views/filament/
+source_files: []
+depends_on: []
+related_to: []

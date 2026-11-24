@@ -1,0 +1,13 @@
+schema_version: 1
+module_path: business_domain
+title: Inventory, Production & Item Domain Layer
+scope:
+    - app/Models/
+    - app/Services/
+source_files: []
+depends_on: []
+related_to:
+    - path: filament_admin_ui/item_requests_resource
+    - path: http_layer
+    - path: livewire_components
+    - path: test_suite

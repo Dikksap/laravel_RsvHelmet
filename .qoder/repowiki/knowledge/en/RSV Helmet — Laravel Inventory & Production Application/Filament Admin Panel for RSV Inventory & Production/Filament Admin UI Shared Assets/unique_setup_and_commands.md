@@ -1,0 +1,1 @@
+All Importer/Exporter classes override `getJobConnection()` to return `'sync'` so imports/exports run without a queue worker; the comments note that removing the override requires running `php artisan queue:work` for large datasets.

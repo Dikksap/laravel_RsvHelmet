@@ -1,0 +1,1 @@
+Orchestrates Filament admin resources, custom pages, widgets, imports/exports, and Blade views that expose the RSV inventory, production, catalog, and external-sync domains to administrators.

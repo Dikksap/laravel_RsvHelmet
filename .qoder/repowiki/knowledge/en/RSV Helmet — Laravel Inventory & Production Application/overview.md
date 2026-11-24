@@ -1,0 +1,1 @@
+Laravel 13 application that exposes inventory, production, and item-request workflows through a Filament admin panel, Livewire forms, and HTTP/console endpoints backed by MariaDB.

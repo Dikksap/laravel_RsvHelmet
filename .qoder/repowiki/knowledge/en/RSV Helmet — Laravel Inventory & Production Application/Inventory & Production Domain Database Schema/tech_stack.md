@@ -1,0 +1,1 @@
+Laravel Migrations + Eloquent Factories + Seeders; UUID primary keys (`$table->uuid('id')->primary()`) across core tables; decimal precision `(10,3)` for dimensions/weight and `(15,2)` for monetary fields.

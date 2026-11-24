@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: filament_admin_ui/catalog_resources
+title: Catalog Master Data Filament Resources
+scope:
+    - app/Filament/Resources/Brands/
+    - app/Filament/Resources/Divisions/
+    - app/Filament/Resources/ItemTypes/
+    - app/Filament/Resources/ItemCategories/
+    - app/Filament/Resources/ItemAttributes/
+source_files: []
+depends_on: []
+related_to: []

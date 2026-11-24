@@ -1,0 +1,6 @@
+- Each resource declares navigation metadata statically (`$navigationGroup`, `$navigationLabel`, `$navigationIcon`, `$navigationSort`, `$recordTitleAttribute`) and exposes a `getNavigationBadge()` / `getNavigationBadgeColor()` / `getNavigationBadgeTooltip()` trio to surface live counts of active records.
+- Status display is driven by model-backed enum constants and a `statusOptions()` helper on the Eloquent model, used both in form `Select` options and table column `formatStateUsing` / color match expressions.
+- Form schemas are built with `Section::make(...)->columns(2)->schema([...])` grouping fields into labeled blocks rather than flat component lists.
+- Table queries pre-aggregate related data via `modifyQueryUsing` with `withSum` / `withCount` aliases so list columns can render computed values without N+1 queries.
+- Child relations are exposed through dedicated `RelationManager` classes under `RelationManagers/` and registered via `getRelations()`, keeping the parent resource's `table()` focused on the aggregate view.
+- Route pages are registered declaratively in `getPages()` using `Xxx::route('/path')` mapping, with edit pages omitted when the domain treats creation and editing as a single flow.

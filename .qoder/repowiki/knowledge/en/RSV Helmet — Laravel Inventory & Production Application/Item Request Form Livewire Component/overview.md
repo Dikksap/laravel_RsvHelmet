@@ -1,0 +1,1 @@
+Livewire-powered item request form that lets users submit multi-line material requests with live catalog search, validation, and a success confirmation with PDF sharing.

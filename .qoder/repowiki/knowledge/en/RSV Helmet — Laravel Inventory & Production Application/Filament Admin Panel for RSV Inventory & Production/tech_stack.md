@@ -1,0 +1,1 @@
+Filament v3 (PHP/Laravel) with Blade templates, Maatwebsite Excel-based Import/Export, and Livewire-powered custom components.

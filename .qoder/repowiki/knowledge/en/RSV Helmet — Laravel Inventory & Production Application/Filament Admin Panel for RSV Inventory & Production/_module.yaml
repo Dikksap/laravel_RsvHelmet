@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: filament_admin_ui
+title: Filament Admin Panel for RSV Inventory & Production
+scope:
+    - app/Filament/
+    - resources/views/filament/
+source_files: []
+depends_on: []
+related_to: []

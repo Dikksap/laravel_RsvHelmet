@@ -1,0 +1,8 @@
+Each subdirectory under `app/Filament/Resources/` is a self-contained Filament Resource following the standard layout: a `<Name>Resource.php` class extending `Filament\Resources\Resource`, plus a `Pages/` folder with `List*`, `Create*`, `Edit*` page classes, and an optional `RelationManagers/` folder for nested tables. The five resources are:
+- `Items/ItemResource` — master item catalog grouped under 'Data Master' navigation; composes form sections (Identitas, Varian, Dimensi & berat, Harga, Perilaku), integrates a custom `InfiniteSelect` for parent-item selection, links to a `BomBuilder` page via a custom record action, and exposes three relation managers (`VariantMappings`, `ItemComponents`, `InventoryBalances`).
+- `Warehouses/WarehouseResource` — warehouse master with a `BalancesRelationManager`.
+- `Uoms/UomResource` — unit-of-measure master.
+- `InventoryBalances/InventoryBalanceResource` — per-warehouse stock levels with a low-stock navigation badge, a bulk `transfer` action that delegates to `App\Services\StockMovementService::transferMany` inside a DB transaction, and a unique constraint on `(item_id, warehouse_id)`.
+- `InventoryMovements/InventoryMovementResource` — stock-in/out/transfer journal with live-dependent fields (type drives visibility of destination warehouse, production batch, component consumption preview) and delete actions that reverse stock via `StockMovementService::delete`.
+
+Dependency direction is one-way outward: resources depend on Eloquent models (`App\Models\*`) and the shared `StockMovementService`; they do not expose any internal interfaces to each other — cross-resource relationships are expressed through Eloquent relations and relation managers rather than direct coupling.

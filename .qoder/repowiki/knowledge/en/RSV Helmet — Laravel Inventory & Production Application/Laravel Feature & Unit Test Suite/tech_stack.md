@@ -1,0 +1,1 @@
+PHPUnit + Laravel Dusk-free testing stack: `Illuminate\Foundation\Testing\RefreshDatabase` for DB resets, `Livewire\Livewire` for component testing, `Illuminate\Support\Facades\Http::fake` for HTTP stubbing, and Laravel factories for test data generation.

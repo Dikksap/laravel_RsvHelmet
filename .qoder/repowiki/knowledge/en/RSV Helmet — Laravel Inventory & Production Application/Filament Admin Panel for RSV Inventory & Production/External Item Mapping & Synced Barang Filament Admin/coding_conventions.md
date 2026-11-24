@@ -1,0 +1,3 @@
+- Each resource class declares navigation metadata as static properties (`$navigationGroup = 'Gudang'`, `$navigationIcon`, `$navigationLabel`, `$modelLabel`, `$pluralModelLabel`, `$navigationSort`, `$recordTitleAttribute`).
+- Custom page classes are registered declaratively in `getPages()` returning a map of route names to `::route(...)` calls rather than using Filament's default convention.
+- Table columns that display related entities use Eloquent relationship dot notation (e.g. `item.item_name`, `mapping.external_variant_code`, `warehouse.name`) and provide fallback descriptions via closures on the record instance.

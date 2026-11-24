@@ -1,0 +1,5 @@
+- Public Livewire state properties are declared with explicit types and default values, with sensitive post-submission IDs marked `#[Locked]` to prevent client tampering.
+- Validation rules and messages are centralized in protected `rules()` and `messages()` methods, using Laravel's array-style rule definitions and per-field error keys like `lines.*.quantity`.
+- Dynamic line-item lists use an integer `key` counter plus a separate `nextLineKey` property so each row gets a stable `wire:key` for Livewire diffing.
+- User-facing text (labels, placeholders, validation messages, headings) is written in Indonesian rather than English throughout both the component and Blade templates.
+- Client-side behavior outside of Livewire is implemented with Alpine.js inline `x-data` blocks bound directly in Blade, keeping small interactions (copy-to-clipboard, share button states) co-located with the markup.

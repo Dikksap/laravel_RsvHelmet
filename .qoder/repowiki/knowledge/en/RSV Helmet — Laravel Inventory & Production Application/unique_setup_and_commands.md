@@ -1,0 +1,1 @@
+Development uses `docker compose up -d` to start the app container (host port 8001) and MariaDB (host port 3308), then `npm run dev -- --port 5174` for the Vite dev server on the host. Production deployment runs `./deploy.sh`, which pulls the latest image from GHCR and caches config/routes/views.
