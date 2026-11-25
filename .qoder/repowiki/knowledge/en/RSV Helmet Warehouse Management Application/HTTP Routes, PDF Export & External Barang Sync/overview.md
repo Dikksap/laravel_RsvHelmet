@@ -1,1 +1,0 @@
-Laravel HTTP route definitions for the Livewire item-request form and signed PDF download, plus the Artisan command that syncs external barang API data into warehouse stock.

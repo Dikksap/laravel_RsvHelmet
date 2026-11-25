@@ -18,6 +18,13 @@
 - [ItemRequestPdfTest.php](file://tests/Feature/ItemRequestPdfTest.php)
 </cite>
 
+## Update Summary
+**Changes Made**
+- Updated quantity formatting section to reflect the new `formattedQuantity()` method implementation
+- Enhanced PDF generation documentation with improved localization support
+- Added details about consistent quantity formatting across all display contexts
+- Updated examples to show proper usage of the new formatting method
+
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Project Structure](#project-structure)
@@ -41,6 +48,7 @@ The system supports:
 - Live search and selection of master items or manual item names.
 - Signed, shareable PDF links.
 - Approval status tracking at both request and line levels.
+- **Enhanced quantity formatting with consistent localization support across all display contexts.**
 
 ## Project Structure
 The feature spans Livewire components, Eloquent models, a controller, Blade views, routes, database migrations, and tests.
@@ -76,13 +84,14 @@ PdfView --> SharedDoc["Shared Document Template"]
 ## Core Components
 - Livewire component `ItemRequestForm` provides the public form, validation, live search, submission, success state, and PDF link generation.
 - Model `ItemRequest` represents the request header, including requester, division, notes, status, and approval metadata.
-- Model `ItemRequestLine` represents each requested item, including mapped or manual item names, quantity, and line-level approval data.
+- Model `ItemRequestLine` represents each requested item, including mapped or manual item names, quantity, and line-level approval data. **Now includes enhanced quantity formatting via `formattedQuantity()` method.**
 - Controller `ItemRequestPdfController` renders the shared document template into an A4 PDF using DomPDF.
 - Blade templates include the interactive form view, preview partial, PDF wrapper, and shared document layout.
 
 Key responsibilities:
 - Input handling and validation: `ItemRequestForm`.
 - Data persistence and relationships: `ItemRequest`, `ItemRequestLine`.
+- **Consistent quantity formatting**: `ItemRequestLine::formattedQuantity()`.
 - PDF rendering: `ItemRequestPdfController` and `pdf.item-request`.
 - Shared document layout: `item-requests.document`.
 
@@ -147,7 +156,7 @@ Important behaviors:
   - Active items with base unit of measure.
   - Per-line search results when a manual query is present.
   - Submitted request details and a temporary signed PDF URL.
-  - Share message text for WhatsApp integration.
+  - Share message text for WhatsApp integration using formatted quantities.
 
 Validation rules:
 - Requester name required, max length.
@@ -168,6 +177,7 @@ Success flow:
 - After successful submission, the view shows ticket number, preview, download button, and share button.
 - The preview includes the shared document template in preview mode.
 - The PDF URL is generated with a short expiration window.
+- **Share messages use formatted quantities for consistent presentation.**
 
 ```mermaid
 flowchart TD
@@ -206,14 +216,17 @@ SetSuccess --> End(["Render success view"])
   - Supports adding/removing lines and live search dropdowns.
   - Includes anti-spam honeypot field.
   - Shows success confirmation with ticket number, preview, PDF download, and share options.
+  - **Displays formatted quantities using the new `formattedQuantity()` method.**
 - Preview partial:
   - Wraps the shared document template in a scrollable container for preview mode.
 
 Key interactions:
 - Typing in the item query triggers debounced live search.
-- Selecting a result updates the line’s selected item and hides manual input.
+- Selecting a result updates the line's selected item and hides manual input.
 - Clearing selection restores manual input mode.
 - Submitting validates and persists data, then switches to success view.
+
+**Updated** All quantity displays now use the centralized `formattedQuantity()` method for consistent formatting across web and PDF outputs.
 
 **Section sources**
 - [item-request-form.blade.php:179-582](file://resources/views/livewire/item-request-form.blade.php#L179-L582)
@@ -243,6 +256,9 @@ ItemRequestLine:
 - Helpers:
   - Determines if the line is mapped to a master item.
   - Checks approval and rejection states.
+  - **Provides formatted quantity display with localization support.**
+
+**Updated** The `ItemRequestLine` model now includes a new `formattedQuantity()` method that uses Laravel's `Number::format()` helper for consistent, localized quantity formatting.
 
 ```mermaid
 classDiagram
@@ -280,6 +296,7 @@ class ItemRequestLine {
 +getIsMappedAttribute()
 +isApproved()
 +isRejected()
++formattedQuantity() string
 }
 ItemRequest "1" --> "many" ItemRequestLine : "hasMany"
 ```
@@ -288,11 +305,13 @@ ItemRequest "1" --> "many" ItemRequestLine : "hasMany"
 - [ItemRequest.php:12-83](file://app/Models/ItemRequest.php#L12-L83)
 - [ItemRequest.php:100-133](file://app/Models/ItemRequest.php#L100-L133)
 - [ItemRequestLine.php:11-79](file://app/Models/ItemRequestLine.php#L11-L79)
+- [ItemRequestLine.php:76-79](file://app/Models/ItemRequestLine.php#L76-L79)
 
 **Section sources**
 - [ItemRequest.php:12-83](file://app/Models/ItemRequest.php#L12-L83)
 - [ItemRequest.php:100-133](file://app/Models/ItemRequest.php#L100-L133)
 - [ItemRequestLine.php:11-79](file://app/Models/ItemRequestLine.php#L11-L79)
+- [ItemRequestLine.php:76-79](file://app/Models/ItemRequestLine.php#L76-L79)
 
 ### PDF Creation: ItemRequestPdfController and Templates
 Controller:
@@ -305,6 +324,9 @@ Templates:
 - PDF wrapper template sets page size and body margins, then includes the shared document template in PDF mode.
 - Shared document template defines the visual layout, tables, headers, signature blocks, and print styles.
 - Preview mode adds a toolbar and responsive zoom; PDF mode adjusts dimensions and removes shadows.
+- **All quantity displays use the new `formattedQuantity()` method for consistent localization.**
+
+**Updated** The PDF generation now consistently uses the `formattedQuantity()` method for all quantity displays, ensuring uniform formatting across different locales and display contexts.
 
 ```mermaid
 sequenceDiagram
@@ -317,7 +339,7 @@ Client->>Route : GET /permintaan-barang/{id}/pdf
 Route->>Controller : Invoke controller
 Controller->>View : Load view with ItemRequest
 View->>Shared : Include shared document in PDF mode
-Shared-->>Client : Rendered PDF content
+Shared-->>Client : Rendered PDF content with formatted quantities
 ```
 
 **Diagram sources**
@@ -368,7 +390,7 @@ Validation ensures:
 
 #### Generating a PDF
 Options:
-- From the success view, click “Unduh PDF” to download the signed PDF.
+- From the success view, click "Unduh PDF" to download the signed PDF.
 - Use the signed PDF URL generated by the component.
 - Access the signed route directly if you already have a valid token.
 
@@ -376,6 +398,7 @@ Notes:
 - The PDF route requires a signed URL.
 - The controller streams an A4 PDF named after the request code.
 - The shared document template renders both mapped and manual items.
+- **All quantities are displayed using the new `formattedQuantity()` method for consistent localization.**
 
 **Section sources**
 - [ItemRequestForm.php:234-240](file://app/Livewire/ItemRequestForm.php#L234-L240)
@@ -387,11 +410,13 @@ To customize the printed document:
 - Edit the shared document template to adjust branding, section titles, table columns, spacing, and signature blocks.
 - Adjust PDF-specific styles in the PDF wrapper template.
 - Modify preview-only styles in the shared template for better screen presentation.
+- **When modifying quantity displays, use the `formattedQuantity()` method to maintain consistent formatting.**
 
 Guidelines:
 - Keep print styles separate from screen styles.
 - Ensure A4 page sizing and margins remain consistent.
 - Test long lists of lines to verify pagination behavior.
+- **Use the centralized quantity formatting method for all quantity displays.**
 
 **Section sources**
 - [document.blade.php:6-280](file://resources/views/item-requests/document.blade.php#L6-L280)
@@ -401,8 +426,9 @@ Guidelines:
 #### Live Preview Functionality
 After submission:
 - The success view includes a preview panel that renders the shared document in preview mode.
-- Users can print or save the preview using the browser’s print dialog.
+- Users can print or save the preview using the browser's print dialog.
 - The preview scales responsively on smaller screens.
+- **Quantities are displayed using the new formatted method for consistency.**
 
 **Section sources**
 - [item-request-form.blade.php:100-102](file://resources/views/livewire/item-request-form.blade.php#L100-L102)
@@ -413,9 +439,10 @@ After submission:
 - The component generates a temporary signed URL for the PDF.
 - The success view exposes a download button and a WhatsApp share button.
 - The share message includes the request code, requester name, division, and a call to action.
+- **Share messages use formatted quantities for consistent presentation across different locales.**
 
 Security:
-- The PDF route uses Laravel’s signed route middleware.
+- The PDF route uses Laravel's signed route middleware.
 - Unsigned access is forbidden.
 
 **Section sources**
@@ -447,6 +474,7 @@ High-level dependencies:
 - Livewire component depends on models and services for data loading and persistence.
 - PDF controller depends on DomPDF facade and shared Blade templates.
 - Shared document template depends on ItemRequest and its relations.
+- **All quantity displays depend on the new `formattedQuantity()` method for consistent formatting.**
 
 ```mermaid
 graph LR
@@ -456,6 +484,7 @@ Livewire --> Models["ItemRequest.php + ItemRequestLine.php"]
 Livewire --> ItemModel["Item.php"]
 Controller --> PdfView["pdf.item-request.blade.php"]
 PdfView --> SharedDoc["item-requests.document.blade.php"]
+SharedDoc --> FormattedQty["formattedQuantity() method"]
 ```
 
 **Diagram sources**
@@ -464,6 +493,7 @@ PdfView --> SharedDoc["item-requests.document.blade.php"]
 - [ItemRequestPdfController.php:9-18](file://app/Http/Controllers/ItemRequestPdfController.php#L9-L18)
 - [item-request.blade.php:17-19](file://resources/views/pdf/item-request.blade.php#L17-L19)
 - [document.blade.php:282-397](file://resources/views/item-requests/document.blade.php#L282-L397)
+- [ItemRequestLine.php:76-79](file://app/Models/ItemRequestLine.php#L76-L79)
 
 **Section sources**
 - [web.php:11-17](file://routes/web.php#L11-L17)
@@ -476,11 +506,13 @@ PdfView --> SharedDoc["item-requests.document.blade.php"]
 - Validation runs before any database writes, preventing unnecessary transactions.
 - PDF rendering uses a shared template to minimize duplication and improve maintainability.
 - Pagination and printing styles are tuned for A4 pages to avoid excessive reflows.
+- **The centralized `formattedQuantity()` method reduces code duplication and improves performance by providing a single source of truth for quantity formatting.**
 
 Recommendations:
 - Cache frequently accessed lookup data such as active items and divisions if traffic increases.
 - Consider background jobs for large PDF generations if many concurrent requests occur.
 - Monitor query performance for search and list operations.
+- **Leverage the centralized quantity formatting method for consistent performance across all display contexts.**
 
 [No sources needed since this section provides general guidance]
 
@@ -492,13 +524,17 @@ Common issues and resolutions:
 - Duplicate item error:
   - Ensure no two lines resolve to the same master item or manual name.
 - Manual item not saved:
-  - If no master item matches, the manual name is stored in the line’s manual name field.
+  - If no master item matches, the manual name is stored in the line's manual name field.
 - PDF route returns forbidden:
   - Ensure the URL is signed and not expired.
 - PDF layout looks incorrect:
   - Inspect shared document template styles and PDF wrapper settings.
 - Preview not visible:
   - Confirm the request was successfully submitted and the preview partial is included.
+- **Quantity formatting appears inconsistent:**
+  - Ensure all quantity displays use the `formattedQuantity()` method.
+  - Check that locale settings are properly configured.
+  - Verify that the `Number::format()` helper is available in your environment.
 
 Relevant test cases:
 - Public form renders correctly.
@@ -507,12 +543,17 @@ Relevant test cases:
 - Manual item names are persisted and later mappable.
 - Signed PDF route returns PDF content and unsigned access is forbidden.
 - Standard requests fit on one A4 page; long requests span multiple pages.
+- **Quantity formatting is consistent across web and PDF outputs.**
 
 **Section sources**
 - [ItemRequestFormTest.php:22-271](file://tests/Feature/ItemRequestFormTest.php#L22-L271)
 - [ItemRequestPdfTest.php:17-108](file://tests/Feature/ItemRequestPdfTest.php#L17-L108)
 
 ## Conclusion
-The Document Generation module provides a robust, user-friendly workflow for creating item requests and producing printable documents. The Livewire component handles interactive input, validation, and live search, while the models capture both request-level and line-level data, including approval states. The controller and shared Blade templates deliver consistent web and PDF outputs. Signed URLs enable secure sharing, and the design supports customization for branding and layout needs. Tests validate core behaviors, ensuring reliability for production use.
+The Document Generation module provides a robust, user-friendly workflow for creating item requests and producing printable documents. The Livewire component handles interactive input, validation, and live search, while the models capture both request-level and line-level data, including approval states. The controller and shared Blade templates deliver consistent web and PDF outputs. Signed URLs enable secure sharing, and the design supports customization for branding and layout needs. 
+
+**The recent enhancement introduces consistent quantity formatting through the centralized `formattedQuantity()` method, ensuring uniform presentation across all display contexts including web interfaces, PDFs, and share messages. This improvement leverages Laravel's localization capabilities to provide culturally appropriate number formatting while maintaining code consistency and performance.**
+
+Tests validate core behaviors, ensuring reliability for production use.
 
 [No sources needed since this section summarizes without analyzing specific files]

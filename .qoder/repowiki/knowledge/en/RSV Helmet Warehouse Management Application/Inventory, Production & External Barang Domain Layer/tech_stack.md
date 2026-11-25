@@ -1,1 +1,0 @@
-Laravel Eloquent with PHP 8 attributes (`#[Fillable]`), UUID primary keys via `HasUuids`, Eloquent factories, Carbon date handling, Laravel's `Number` helper for locale-aware decimal formatting, and Guzzle-backed `Illuminate\Http\Client` for the external barang API.

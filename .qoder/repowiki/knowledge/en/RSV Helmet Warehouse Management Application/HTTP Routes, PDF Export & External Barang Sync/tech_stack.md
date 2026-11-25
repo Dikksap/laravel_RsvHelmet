@@ -1,1 +1,0 @@
-Laravel routing + Livewire for the form page, Barryvdh\DomPDF facade for PDF generation, Symfony `Response` type hints on controller return types.

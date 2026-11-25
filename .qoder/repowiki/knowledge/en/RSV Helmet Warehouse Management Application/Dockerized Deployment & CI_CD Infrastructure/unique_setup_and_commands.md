@@ -1,1 +1,0 @@
-Production deployment requires setting `APP_KEY` and `DB_PASSWORD` as mandatory env vars (enforced via `${VAR:?...}`); the CI workflow triggers only on `master` pushes and tags matching `v*.*.*`; server-side deploy targets `/opt/web/RSV_Helmet_Laravel` and expects a `deploy.sh` helper alongside `docker-compose.prod.yml` and `.env`.

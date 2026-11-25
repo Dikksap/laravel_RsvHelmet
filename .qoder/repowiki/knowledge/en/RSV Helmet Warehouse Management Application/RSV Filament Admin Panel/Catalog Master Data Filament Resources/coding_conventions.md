@@ -1,5 +1,0 @@
-- Each resource class sets static properties for navigation metadata (`navigationGroup = 'Data Master'`, `navigationIcon`, `navigationLabel`, `navigationSort`, `recordTitleAttribute = 'name'`) rather than configuring them in `boot()`.
-- CRUD pages are split into dedicated `Pages/Create*.php`, `Pages/Edit*.php`, `Pages/List*.php` classes and wired up via `getPages()` returning route mappings for `'index'`, `'create'`, `'edit'`.
-- Form schemas consistently include a required `name` TextInput with `unique(ignoreRecord: true)` and an `is_active` Toggle defaulting to `true` for soft-enablement of records.
-- Table definitions follow a uniform shape: searchable/sortable name column, optional counts columns via `counts('relation')`, boolean `is_active` IconColumn, hidden-by-default `created_at`, a TernaryFilter on `is_active`, Edit/Delete record actions, and a BulkActionGroup with DeleteBulkAction.
-- User-facing labels are written in Indonesian (e.g. 'Nama', 'Aktif', 'Jumlah barang', 'Deskripsi') instead of English keys.

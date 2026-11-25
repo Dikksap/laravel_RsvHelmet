@@ -1,5 +1,0 @@
-Three thin entry points under Laravel's framework layer with one-way dependency direction:
-- `routes/web.php` declares two GET endpoints: a throttled Livewire form at `/permintaan-barang` (resolved by class name) and a signed-PDF endpoint at `/permintaan-barang/{itemRequest}/pdf` resolved to `ItemRequestPdfController::class`, relying on implicit route model binding for `ItemRequest`.
-- `app/Http/Controllers/Controller.php` is an empty abstract base; `ItemRequestPdfController` is a single-shot invokable (`__invoke`) that eager-loads related entities via `loadMissing` and streams a DomPDF view as an A4 attachment.
-- `routes/console.php` registers only the default `inspire` command; `app/Console/Commands/SyncExternalBarangCommand` defines `sync:external-barang`, validates CLI options against active `Warehouse`/`ProductionBatch` records, then delegates all business logic to `App\Services\ExternalBarangSyncService` and renders results through `table()` output.
-No cross-talk between the HTTP and console layers — both depend outward on models/services but never on each other.

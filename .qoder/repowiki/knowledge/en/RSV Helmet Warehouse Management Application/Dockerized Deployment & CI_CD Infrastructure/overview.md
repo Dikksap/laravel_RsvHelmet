@@ -1,1 +1,0 @@
-Containerization, production orchestration, and GitHub Actions CI/CD pipeline for the Laravel RSV Helmet application, including multi-stage images, Nginx+PHP-FPM runtime, and automated GHCR publishing.

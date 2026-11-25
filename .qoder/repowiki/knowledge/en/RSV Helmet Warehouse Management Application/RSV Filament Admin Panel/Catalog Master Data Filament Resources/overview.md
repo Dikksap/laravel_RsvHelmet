@@ -1,1 +1,0 @@
-Filament admin resources for catalog master data entities — Brands, Divisions, ItemTypes, ItemCategories, and ItemAttributes — providing CRUD pages, tables, forms, and relation managers.

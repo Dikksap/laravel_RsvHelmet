@@ -1,1 +1,0 @@
-Filament v3 (PHP/Laravel) — uses `Filament\Resources\Resource`, `Filament\Tables\Table`, `Filament\Schemas\Schema`, `Filament\Actions\*`, and `Filament\Resources\RelationManagers\RelationManager`.

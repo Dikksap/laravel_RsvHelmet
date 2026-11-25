@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Filament\Pages\StockCard;
 use App\Filament\Resources\InventoryMovements\Pages\CreateInventoryMovement;
 use App\Filament\Resources\InventoryMovements\Pages\ListInventoryMovements;
+use App\Models\Division;
 use App\Models\ExternalItemMapping;
 use App\Models\ExternalSyncedBarang;
 use App\Models\InventoryBalance;
@@ -724,6 +725,26 @@ class StockMovementTest extends TestCase
             ->filterTable('production_batch_id', $batch->getKey())
             ->assertCanSeeTableRecords([$withBatch])
             ->assertCanNotSeeTableRecords([$withoutBatch]);
+    }
+
+    public function test_stock_card_can_be_filtered_by_division(): void
+    {
+        $division = Division::factory()->create();
+        $otherDivision = Division::factory()->create();
+
+        $matching = InventoryMovement::factory()->create([
+            'item_id' => Item::factory()->withDivision($division)->create()->getKey(),
+        ]);
+        $nonMatching = InventoryMovement::factory()->create([
+            'item_id' => Item::factory()->withDivision($otherDivision)->create()->getKey(),
+        ]);
+
+        Livewire::test(StockCard::class)
+            ->assertTableFilterExists('division_id')
+            ->assertTableColumnExists('item.division.name')
+            ->filterTable('division_id', $division->getKey())
+            ->assertCanSeeTableRecords([$matching])
+            ->assertCanNotSeeTableRecords([$nonMatching]);
     }
 
     public function test_stock_transaction_can_be_deleted_from_the_table(): void

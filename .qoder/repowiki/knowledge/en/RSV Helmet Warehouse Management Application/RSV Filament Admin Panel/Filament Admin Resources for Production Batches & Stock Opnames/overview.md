@@ -1,1 +1,0 @@
-Filament admin resources providing CRUD pages, tables, forms, and nested relation managers for production batch tracking and physical stock inventory counting.

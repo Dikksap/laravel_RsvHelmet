@@ -1,4 +1,0 @@
-- Each resource declares navigation metadata as static properties (`$navigationGroup = 'Integrasi Eksternal'`, `$navigationIcon`, `$navigationLabel`, `$modelLabel`, `$pluralModelLabel`, `$navigationSort`, `$recordTitleAttribute`).
-- Custom page classes are registered declaratively in `getPages()` returning a map of route names to `::route(...)` calls rather than relying on Filament's default convention.
-- Table columns that display related entities use Eloquent relationship dot notation (e.g. `item.item_name`, `mapping.external_variant_code`, `warehouse.name`) and provide fallback descriptions or formatting via closures on the record instance.
-- Read-only resources return an empty schema from `form()` and empty arrays from `actions()` / `bulkActions()` to signal view-only intent.

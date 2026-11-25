@@ -11,9 +11,14 @@ use App\Filament\Resources\Items\Pages\ListItems;
 use App\Filament\Resources\Items\RelationManagers\InventoryBalancesRelationManager;
 use App\Filament\Resources\Items\RelationManagers\ItemComponentsRelationManager;
 use App\Filament\Resources\Items\RelationManagers\VariantMappingsRelationManager;
+use App\Models\Brand;
+use App\Models\Division;
 use App\Models\Item;
+use App\Models\ItemCategory;
+use App\Models\ItemType;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -23,8 +28,10 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -32,6 +39,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use UnitEnum;
 
 class ItemResource extends Resource
@@ -269,6 +277,7 @@ class ItemResource extends Resource
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
+                    self::bulkEditMasterDataAction(),
                     ExportBulkAction::make()
                         ->exporter(ItemExporter::class),
                     DeleteBulkAction::make(),
@@ -276,6 +285,98 @@ class ItemResource extends Resource
             ])
             ->defaultSort('item_name')
             ->infinite(perPage: 50);
+    }
+
+    public static function bulkEditMasterDataAction(): BulkAction
+    {
+        return BulkAction::make('bulkEditMasterData')
+            ->label('Edit massal')
+            ->icon('heroicon-o-pencil-square')
+            ->modalHeading('Edit massal data master')
+            ->modalDescription('Centang data master yang ingin diubah. Data master yang tidak dicentang dibiarkan apa adanya.')
+            ->modalSubmitActionLabel('Simpan perubahan')
+            ->schema([
+                Section::make('Data master')
+                    ->columns(2)
+                    ->schema([
+                        Toggle::make('change_item_type')
+                            ->label('Ubah jenis barang')
+                            ->live(),
+                        Select::make('item_type_id')
+                            ->label('Jenis barang')
+                            ->options(fn (): array => ItemType::query()->orderBy('name')->pluck('name', 'id')->all())
+                            ->searchable()
+                            ->required(fn (Get $get): bool => (bool) $get('change_item_type'))
+                            ->visible(fn (Get $get): bool => (bool) $get('change_item_type')),
+                        Toggle::make('change_category')
+                            ->label('Ubah kategori')
+                            ->live(),
+                        Select::make('category_id')
+                            ->label('Kategori')
+                            ->options(fn (): array => ItemCategory::query()->orderBy('name')->pluck('name', 'id')->all())
+                            ->searchable()
+                            ->placeholder('Kosongkan kategori')
+                            ->helperText('Biarkan kosong untuk menghapus kategori barang.')
+                            ->visible(fn (Get $get): bool => (bool) $get('change_category')),
+                        Toggle::make('change_brand')
+                            ->label('Ubah merek')
+                            ->live(),
+                        Select::make('brand_id')
+                            ->label('Merek')
+                            ->options(fn (): array => Brand::query()->orderBy('name')->pluck('name', 'id')->all())
+                            ->searchable()
+                            ->placeholder('Kosongkan merek')
+                            ->helperText('Biarkan kosong untuk menghapus merek barang.')
+                            ->visible(fn (Get $get): bool => (bool) $get('change_brand')),
+                        Toggle::make('change_division')
+                            ->label('Ubah divisi')
+                            ->live(),
+                        Select::make('division_id')
+                            ->label('Divisi')
+                            ->options(fn (): array => Division::query()->orderBy('name')->pluck('name', 'id')->all())
+                            ->searchable()
+                            ->placeholder('Kosongkan divisi')
+                            ->helperText('Biarkan kosong untuk menghapus divisi barang.')
+                            ->visible(fn (Get $get): bool => (bool) $get('change_division')),
+                    ]),
+            ])
+            ->action(function (EloquentCollection $records, array $data, BulkAction $action): void {
+                $updates = [];
+
+                if ($data['change_item_type'] ?? false) {
+                    $updates['item_type_id'] = $data['item_type_id'] ?? null;
+                }
+
+                if ($data['change_category'] ?? false) {
+                    $updates['category_id'] = $data['category_id'] ?: null;
+                }
+
+                if ($data['change_brand'] ?? false) {
+                    $updates['brand_id'] = $data['brand_id'] ?: null;
+                }
+
+                if ($data['change_division'] ?? false) {
+                    $updates['division_id'] = $data['division_id'] ?: null;
+                }
+
+                if ($updates === []) {
+                    Notification::make()
+                        ->warning()
+                        ->title('Tidak ada data master yang diubah')
+                        ->body('Centang minimal satu data master yang ingin diubah.')
+                        ->send();
+
+                    $action->halt();
+
+                    return;
+                }
+
+                Item::query()
+                    ->whereKey($records->modelKeys())
+                    ->update($updates);
+            })
+            ->successNotificationTitle(fn (EloquentCollection $records): string => "{$records->count()} barang diperbarui.")
+            ->deselectRecordsAfterCompletion();
     }
 
     public static function getRelations(): array

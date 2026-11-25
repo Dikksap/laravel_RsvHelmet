@@ -1,1 +1,0 @@
-Docker multi-stage builds (PHP 8.4-FPM Alpine, Nginx, Supervisor, Node 22, Composer 2), MariaDB 11, GitHub Container Registry (`ghcr.io`), GitHub Actions with Buildx caching, Laravel Pint for style checks, Vite for frontend asset compilation, Filament admin panel requiring vendor CSS/views during build.

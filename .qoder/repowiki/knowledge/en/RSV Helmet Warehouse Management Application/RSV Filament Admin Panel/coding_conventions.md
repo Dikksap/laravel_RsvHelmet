@@ -1,4 +1,0 @@
-- Each domain entity lives in its own Resources/<Entity>/ folder containing an <Entity>Resource.php plus a Pages/ subdirectory with Create/Edit/List variants.
-- RelationManagers are placed in a RelationManagers/ subdirectory alongside the Resource when a parent-child relationship needs nested editing.
-- Import and Export classes mirror each other one-to-one per model (e.g., ItemImporter + ItemExporter), sharing the same column mapping strategy.
-- Custom Filament Pages live under app/Filament/Pages/ and share a common blade template under resources/views/filament/pages/<slug>.blade.php.

@@ -1,1 +1,0 @@
-Filament v3 admin panel wiring domain resources, custom pages, widgets, imports/exports, and Blade views that expose RSV's catalog, inventory, production, and external-sync domains to administrators.

@@ -1,6 +1,0 @@
-- Each Exporter/Importer pairs one model with a dedicated class under `Exports/` or `Imports/`, declares `protected static ?string $model = Model::class`, and defines columns via `ExportColumn::make` / `ImportColumn::make` chains.
-- Importers mark required fields with `->requiredMapping()` and optional ones with `->ignoreBlankState()`, while numeric/boolean columns use `->numeric(decimalPlaces: N)` and `->boolean()` respectively.
-- Completed import/export jobs report results through `getCompletedNotificationBody(...)` returning Indonesian-language messages that include successful and failed row counts.
-- Import/Export classes force synchronous execution by overriding `getJobConnection()` to return `'sync'` instead of relying on a queue worker.
-- Domain pages extend Filament's `Page` (or `BaseDashboard`) and declare navigation metadata statically (`$navigationGroup`, `$navigationLabel`, `$navigationIcon`, `$navigationSort`, `$title`).
-- Tables in pages and widgets build queries using Eloquent `withSum`/`withCount` aggregations over related models rather than raw joins.

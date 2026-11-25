@@ -1,6 +1,0 @@
-Three Laravel database layers under `database/`:
-- `migrations/` — timestamp-prefixed chronological evolution. Core reference tables (uoms, item_types, item_categories, brands, items, attributes/values) are created first, then extended by variant mappings, imports/exports, warehouses, inventory balances/movements, production batches/materials/components, stock opnames, divisions, item requests (with approval columns), and finally external-item mappings/synced barang tables.
-- `seeders/` — `DatabaseSeeder.php` orchestrates `MasterDataSeeder`, `FinishGoodItemSeeder`, and `MasterItemSeeder`; master data is seeded via `updateOrCreate` keyed by natural codes to keep seeding idempotent.
-- `factories/` — one factory per Eloquent model extending `Illuminate\Database\Eloquent\Factories\Factory`, with fluent state methods (`withCategory`, `variantOf`, `parent`) returning `static` to compose related records.
-
-Dependency direction is strictly forward: later migrations depend on earlier ones; seeders depend on models and factories; factories depend only on their target model plus referenced models. The latest migrations (`2026_11_23_*`, `2026_11_24_*`) introduce `external_item_mappings` and `external_synced_barangs` bridging internal items to an external barang API, with `production_batch_id` added to link synced outputs back to a selected batch.

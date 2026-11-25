@@ -1,1 +1,0 @@
-Filament v4 (PHP/Laravel) using `Filament\Resources\Resource`, `Filament\Schemas\Schema`, `Filament\Tables\Table`, `Filament\Forms\Components`, Heroicons (`heroicon-o-*`), and custom components like `InfiniteSelect` plus Filament's built-in Import/Export actions.

@@ -1,1 +1,0 @@
-Laravel Livewire 3 components with PHP attributes (`#[Layout]`, `#[Title]`, `#[Locked]`), Blade templates, Tailwind CSS utility classes, and Alpine.js for non-Livewire client interactions (clipboard + Web Share API).

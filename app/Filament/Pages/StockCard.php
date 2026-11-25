@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\Division;
 use App\Models\InventoryMovement;
 use App\Models\Item;
 use BackedEnum;
@@ -11,6 +12,7 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Number;
 use UnitEnum;
 
@@ -63,6 +65,11 @@ class StockCard extends Page implements HasTable
                     ->label('Barang')
                     ->searchable()
                     ->wrap(),
+                TextColumn::make('item.division.name')
+                    ->label('Divisi')
+                    ->placeholder('—')
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('warehouse.name')
                     ->label('Gudang')
                     ->sortable(),
@@ -111,6 +118,19 @@ class StockCard extends Page implements HasTable
                         ->mapWithKeys(fn (Item $item): array => [$item->id => "{$item->item_code} — {$item->item_name}"])
                         ->all())
                     ->searchable(),
+                SelectFilter::make('division_id')
+                    ->label('Divisi')
+                    ->options(fn (): array => Division::query()
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->all())
+                    ->query(fn (Builder $query, array $data): Builder => $query->when(
+                        filled($data['value'] ?? null),
+                        fn (Builder $query): Builder => $query->whereHas(
+                            'item',
+                            fn (Builder $query): Builder => $query->where('division_id', $data['value']),
+                        ),
+                    )),
                 SelectFilter::make('warehouse_id')
                     ->label('Gudang')
                     ->relationship('warehouse', 'name'),

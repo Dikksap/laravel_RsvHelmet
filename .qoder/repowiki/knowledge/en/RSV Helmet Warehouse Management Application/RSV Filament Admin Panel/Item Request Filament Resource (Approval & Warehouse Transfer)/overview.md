@@ -1,1 +1,0 @@
-Filament resource exposing the warehouse item request workflow: a read-only list/detail view with per-line approval/rejection that moves inventory between configured origin and destination warehouses.

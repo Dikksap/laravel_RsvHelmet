@@ -1,3 +1,0 @@
-- Domain logic is expressed as Eloquent models and service classes under `app/`, referenced uniformly by the Filament resources, Livewire components, and HTTP controllers.
-- Database changes follow the Laravel convention of migrations under `database/migrations`, seeders under `database/seeders`, and factories under `database/factories/`, all autoloaded via Composer PSR-4.
-- Filament admin resources, pages, widgets, and imports/exports are auto-discovered under `app/Filament/` and published to `public/{css,js,fonts}/filament` during deploy.
