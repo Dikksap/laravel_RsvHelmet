@@ -1,1 +1,0 @@
-Filament admin resources for mapping external API variants to internal RSV items and viewing the resulting synced stock-in history.

@@ -1,3 +1,4 @@
+opencode
 <?php
 
 use Illuminate\Foundation\Application;

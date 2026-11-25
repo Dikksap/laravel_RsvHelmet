@@ -1,1 +1,0 @@
-Filament admin resources for managing items, warehouses, unit-of-measure master data, inventory balances, and stock movement transactions.

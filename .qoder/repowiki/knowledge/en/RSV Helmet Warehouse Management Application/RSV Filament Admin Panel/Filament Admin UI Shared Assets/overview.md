@@ -1,0 +1,1 @@
+Shared Filament v3 admin assets — custom login, per-entity import/export definitions, a paginated infinite-select form component, production dashboard widgets, and production-domain pages.

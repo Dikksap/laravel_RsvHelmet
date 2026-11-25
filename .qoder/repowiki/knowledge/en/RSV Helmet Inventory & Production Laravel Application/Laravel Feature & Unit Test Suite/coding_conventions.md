@@ -1,6 +1,0 @@
-- Feature tests extend `Tests\TestCase` and use `RefreshDatabase` trait to ensure a clean database per test case.
-- Authentication is established in `setUp()` via `$this->actingAs(User::factory()->create())` before any request or Livewire interaction.
-- Livewire/Filament components are tested through `Livewire::test(Component::class)` with fluent chains such as `set(...)`, `call(...)`, `assertHasNoErrors()`, and `assertCanSeeTableRecords(...)`.
-- External HTTP dependencies are stubbed using `Http::fake(['pattern' => Http::response([...], 200)])` keyed by URL glob patterns.
-- Domain fixtures are created via model factories (e.g. `Item::factory()`, `ProductionBatch::factory()`) rather than raw `DB::table` inserts.
-- Assertions combine HTTP response checks (`assertOk`, `assertSee`, `assertSee(route(...))`) with database assertions (`assertDatabaseHas`, `assertDatabaseMissing`) to verify both UI and persistence.

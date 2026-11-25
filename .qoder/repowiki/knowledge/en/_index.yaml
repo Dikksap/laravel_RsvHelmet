@@ -3,11 +3,11 @@ schema_version: 1
 locale: en-US
 branch: master
 nodes_managed: true
-exported_at: "2026-11-24T06:31:15Z"
+exported_at: "2026-11-24T08:03:27Z"
 modules:
     "":
-        dir_name: RSV Helmet Inventory & Production Laravel Application
-        title: RSV Helmet Inventory & Production Laravel Application
+        dir_name: RSV Helmet Warehouse Management Application
+        title: RSV Helmet Warehouse Management Application
         scope:
             - README.md
             - AGENTS.md
@@ -40,8 +40,8 @@ modules:
         depends_on: []
         related_to: []
     business_domain:
-        dir_name: Inventory, Production & Item Domain Layer
-        title: Inventory, Production & Item Domain Layer
+        dir_name: Inventory, Production & External Barang Domain Layer
+        title: Inventory, Production & External Barang Domain Layer
         scope:
             - app/Models/
             - app/Services/
@@ -81,8 +81,8 @@ modules:
         depends_on: []
         related_to: []
     filament_admin_ui:
-        dir_name: Filament Admin Panel for RSV Inventory & Production
-        title: Filament Admin Panel for RSV Inventory & Production
+        dir_name: RSV Filament Admin Panel
+        title: RSV Filament Admin Panel
         scope:
             - app/Filament/
             - resources/views/filament/
@@ -111,8 +111,8 @@ modules:
         depends_on: []
         related_to: []
     filament_admin_ui/external_sync_resources:
-        dir_name: External Item Mapping & Synced Barang Filament Admin
-        title: External Item Mapping & Synced Barang Filament Admin
+        dir_name: External Barang Mapping & Synced Stock-In Admin
+        title: External Barang Mapping & Synced Stock-In Admin
         scope:
             - app/Filament/Resources/ExternalItemMappings/
             - app/Filament/Resources/ExternalSyncedBarangs/
@@ -146,8 +146,8 @@ modules:
         depends_on: []
         related_to: []
     filament_admin_ui/inventory_resources:
-        dir_name: Inventory & Item Filament Admin Resources
-        title: Inventory & Item Filament Admin Resources
+        dir_name: Filament Inventory Admin Resources
+        title: Filament Inventory Admin Resources
         scope:
             - app/Filament/Resources/Items/
             - app/Filament/Resources/Warehouses/
@@ -159,8 +159,8 @@ modules:
         depends_on: []
         related_to: []
     filament_admin_ui/item_requests_resource:
-        dir_name: Item Requests Filament Resource
-        title: Item Requests Filament Resource
+        dir_name: Item Request Filament Resource (Approval & Warehouse Transfer)
+        title: Item Request Filament Resource (Approval & Warehouse Transfer)
         scope:
             - app/Filament/Resources/ItemRequests/
         source_files: []
@@ -170,8 +170,8 @@ modules:
             - path: business_domain
             - path: test_suite
     filament_admin_ui/production_resources:
-        dir_name: Production Batches & Stock Opname Filament Resources
-        title: Production Batches & Stock Opname Filament Resources
+        dir_name: Filament Admin Resources for Production Batches & Stock Opnames
+        title: Filament Admin Resources for Production Batches & Stock Opnames
         scope:
             - app/Filament/Resources/ProductionBatches/
             - app/Filament/Resources/StockOpnames/
@@ -180,8 +180,8 @@ modules:
         depends_on: []
         related_to: []
     http_layer:
-        dir_name: HTTP Routes & Console Command Layer
-        title: HTTP Routes & Console Command Layer
+        dir_name: HTTP Routes, PDF Export & External Barang Sync
+        title: HTTP Routes, PDF Export & External Barang Sync
         scope:
             - app/Http/
             - routes/

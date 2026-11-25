@@ -1,1 +1,0 @@
-Laravel migrations, seeders, and factories that define the inventory, production, stocktaking, item-request, and external-sync domain schema for the RSV Helmet application.

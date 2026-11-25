@@ -1,0 +1,1 @@
+Laravel Eloquent models and service layer implementing item catalog, inventory ledger, production batch BOM explosion, stock movements/stocktaking, and idempotent external-barang synchronization.

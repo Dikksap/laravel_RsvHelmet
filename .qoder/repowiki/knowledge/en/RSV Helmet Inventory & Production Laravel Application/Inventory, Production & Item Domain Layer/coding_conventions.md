@@ -1,6 +1,0 @@
-- Eloquent models declare fillable fields via the `#[Fillable([...])]` attribute and cast numeric/boolean/date columns in a `casts()` method returning an array of type strings.
-- Domain enumerations are expressed as `public const` class constants on the model (e.g. `TYPE_*` on `InventoryMovement`, `STATUS_*` on `ProductionBatch`) paired with static option-label methods (`typeOptions`, `statusOptions`, `formTypeOptions`).
-- Query scoping is done via `public function scopeXxx(Builder $query)` methods on models (e.g. `scopeActive`, `scopeOutgoing`, `scopeIncoming`, `scopeParents`, `scopeVariants`) instead of ad-hoc where clauses.
-- All write paths in Services wrap their DB mutations in `DB::transaction()` closures, and concurrent balance updates use `->lockForUpdate()->first()` before applying deltas.
-- Business validation errors are thrown as `Illuminate\Validation\ValidationException::withMessages([...])` so callers can render field-level error messages uniformly.
-- Decimal quantities are consistently cast to `(float)` and rounded to three decimal places via `round(..., 3)` or `Number::format(..., maxPrecision: 3)` before persistence or display.

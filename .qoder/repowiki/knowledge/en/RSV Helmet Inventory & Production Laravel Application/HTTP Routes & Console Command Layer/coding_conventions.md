@@ -1,3 +1,0 @@
-- Route handlers are resolved by class name and use PHP invokable classes (`__invoke`) rather than named methods.
-- Console commands declare their CLI signature and description as `protected` properties on `Illuminate\Console\Command` subclasses and delegate work to domain services injected into `handle()`.
-- Routes apply middleware declaratively via chained `->middleware(...)` calls (e.g. `throttle`, `signed`) instead of global registration.

@@ -1,1 +1,0 @@
-Laravel Eloquent with PHP 8 attributes (`#[Fillable]`), UUID primary keys (`HasUuids`), Eloquent factories, Carbon date handling, and Laravel's `Number` helper for locale-aware decimal formatting.

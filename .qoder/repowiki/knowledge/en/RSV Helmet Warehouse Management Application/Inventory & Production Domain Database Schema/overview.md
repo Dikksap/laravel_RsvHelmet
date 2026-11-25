@@ -1,0 +1,1 @@
+Laravel migrations, seeders, and factories defining the item catalog, inventory movements, production batches, stock opnames, item requests, and external-barang sync schema for RSV Helmet.

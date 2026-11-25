@@ -1,1 +1,0 @@
-Filament v3 Resources + Schemas + Tables; uses a custom `App\Filament\Forms\Components\InfiniteSelect` for paginated item selection and `App\Services\ExternalBarangApiService` for fetching external variant options.

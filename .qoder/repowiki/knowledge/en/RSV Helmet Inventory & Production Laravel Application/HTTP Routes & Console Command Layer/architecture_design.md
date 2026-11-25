@@ -1,5 +1,0 @@
-Three thin layers under the Laravel framework:
-- `routes/web.php` declares HTTP endpoints — a Livewire form at `/permintaan-barang` (throttled) and a signed PDF download at `/permintaan-barang/{itemRequest}/pdf`.
-- `app/Http/Controllers/Controller.php` is the empty abstract base; `ItemRequestPdfController.php` implements a single-shot `__invoke` that resolves an `ItemRequest` via route model binding, eager-loads related entities, and streams a DomPDF view as an A4 attachment.
-- `routes/console.php` registers only the default `inspire` command; `app/Console/Commands/SyncExternalBarangCommand.php` defines `sync:external-barang`, which delegates all business logic to `App\Services\ExternalBarangSyncService` and surfaces options (`--warehouse`, `--limit`, `--all-pages`, `--status`, `--dry-run`) with console table output.
-Dependency direction is one-way: routes → controllers/services; commands → services; no cross-talk between HTTP and console layers.

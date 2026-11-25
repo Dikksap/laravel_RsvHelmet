@@ -1,0 +1,4 @@
+- Route handlers are resolved by class name and implemented as PHP invokable classes (`__invoke`) rather than named methods.
+- Console commands declare their CLI signature and description as `protected` properties on `Illuminate\Console\Command` subclasses and delegate work to domain services injected via `handle()` parameter resolution.
+- Routes apply middleware declaratively via chained `->middleware(...)` calls (e.g. `throttle`, `signed`) directly on the route definition instead of registering them globally.
+- CLI option values are validated before use — missing or invalid IDs cause early `FAILURE` returns with user-facing error messages via `$this->error()`.

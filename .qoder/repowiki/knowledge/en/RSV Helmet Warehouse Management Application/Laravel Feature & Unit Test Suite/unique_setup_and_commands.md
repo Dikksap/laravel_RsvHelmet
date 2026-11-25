@@ -1,0 +1,1 @@
+Tests require the application's database to be available (SQLite or configured driver) since `RefreshDatabase` migrates schema on each run; authentication is provided automatically by creating a `User` factory instance in each feature test's `setUp()`.

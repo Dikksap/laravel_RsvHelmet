@@ -1,0 +1,1 @@
+Filament v3 resources/forms/tables/infolists/notifications; Livewire components; Laravel Eloquent models plus a domain service (`ItemRequestService`).

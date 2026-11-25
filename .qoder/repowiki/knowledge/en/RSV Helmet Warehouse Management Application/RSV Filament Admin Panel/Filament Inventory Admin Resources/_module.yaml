@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: filament_admin_ui/inventory_resources
+title: Filament Inventory Admin Resources
+scope:
+    - app/Filament/Resources/Items/
+    - app/Filament/Resources/Warehouses/
+    - app/Filament/Resources/InventoryBalances/
+    - app/Filament/Resources/InventoryMovements/
+    - app/Filament/Resources/Uoms/
+source_files: []
+depends_on: []
+related_to: []

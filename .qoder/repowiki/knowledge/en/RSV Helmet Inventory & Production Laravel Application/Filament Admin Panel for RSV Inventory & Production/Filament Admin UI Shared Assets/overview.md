@@ -1,1 +1,0 @@
-Shared Filament admin assets — custom login page, export/import definitions, a custom form component, dashboard widgets, and production-domain pages plus an infinite-scroll list base class.

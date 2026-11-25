@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: filament_admin_ui/external_sync_resources
+title: External Barang Mapping & Synced Stock-In Admin
+scope:
+    - app/Filament/Resources/ExternalItemMappings/
+    - app/Filament/Resources/ExternalSyncedBarangs/
+source_files: []
+depends_on: []
+related_to:
+    - path: business_domain

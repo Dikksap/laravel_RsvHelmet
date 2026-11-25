@@ -1,6 +1,0 @@
-Three Laravel database layers coexist under `database/`:
-- `migrations/` — chronological schema evolution using timestamp-prefixed files. Core entity tables (uoms, item_types, item_categories, brands, items, item_attributes/values) are created first, then extended by variant mappings, imports/exports, warehouses, inventory balances/movements, production batches/materials/components, stock opnames, divisions, item requests (with approval columns), and finally external-item mappings/synced barang tables.
-- `seeders/` — `DatabaseSeeder.php` orchestrates `MasterDataSeeder`, `FinishGoodItemSeeder`, and `MasterItemSeeder`; master data is seeded via `updateOrCreate` on reference entities (UOM, Division, ItemType, ItemAttribute).
-- `factories/` — one factory per Eloquent model, extending `Illuminate\Database\Eloquent\Factories\Factory`, with fluent state methods (`withCategory`, `variantOf`, `parent`) to compose related records.
-
-Dependency direction is strictly forward: later migrations depend on earlier ones; seeders depend on both models and factories; factories depend only on their target model plus referenced models. Foreign keys use `constrained()` with explicit `restrictOnDelete` / `nullOnDelete` / `cascadeOnDelete` semantics rather than defaults.

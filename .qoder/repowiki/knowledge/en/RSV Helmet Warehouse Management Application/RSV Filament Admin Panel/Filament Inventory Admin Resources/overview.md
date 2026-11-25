@@ -1,0 +1,1 @@
+Filament v3 admin resources for managing item master data, warehouses, units of measure, per-warehouse stock balances, and stock-in/out/transfer movement transactions.

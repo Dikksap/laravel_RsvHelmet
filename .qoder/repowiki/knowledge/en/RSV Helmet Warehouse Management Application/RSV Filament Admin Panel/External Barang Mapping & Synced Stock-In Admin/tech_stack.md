@@ -1,0 +1,1 @@
+Filament v3 Resources + Schemas + Tables; custom `App\Filament\Forms\Components\InfiniteSelect` for paginated item selection; `App\Services\ExternalBarangApiService` for live external variant data; `App\Services\ExternalBarangSyncService` for stock-in sync orchestration.
