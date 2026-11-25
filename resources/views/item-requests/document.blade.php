@@ -352,7 +352,7 @@
                         <td class="item-request-no">{{ str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) }}</td>
                         <td>{{ $line->item?->item_name ?? $line->requested_item_name }}</td>
                         <td>{{ $line->note }}</td>
-                        <td>{{ $line->quantity }}</td>
+                        <td>{{ $line->formattedQuantity() }}</td>
                         <td>{{ $line->item?->baseUom?->code }}</td>
                     </tr>
                 @endforeach

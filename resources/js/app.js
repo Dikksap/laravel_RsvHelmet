@@ -62,7 +62,7 @@ window.shareItemRequestPdf = async (pdfUrl, code, message) => {
     downloadLink.remove();
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 5_000);
 
-    const fallbackMessage = `${message}\n\nPDF sudah diunduh sebagai ${fileName}. Silakan lampirkan file tersebut sebelum mengirim.`;
+    const fallbackMessage = `${message}\n\nLampirkan PDF: ${fileName}`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(fallbackMessage)}`, '_blank', 'noopener');
     return 'downloaded';

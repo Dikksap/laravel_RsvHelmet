@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Models\Division;
 use App\Models\Item;
 use App\Models\ItemRequest;
+use App\Models\ItemRequestLine;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -242,10 +243,20 @@ class ItemRequestForm extends Component
         $shareMessage = $submittedRequest === null
             ? null
             : implode("\n", [
-                "Permintaan barang {$submittedRequest->code}",
-                "Peminta: {$submittedRequest->requester_name}",
+                $submittedRequest->code,
+                'Nama: '.$submittedRequest->requester_name,
                 'Divisi: '.($submittedRequest->division?->name ?? '—'),
-                'Mohon proses permintaan ini.',
+                'Barang:',
+                ...$submittedRequest->lines
+                    ->values()
+                    ->map(fn (ItemRequestLine $line, int $index): string => trim(sprintf(
+                        '%d. %s x%s %s',
+                        $index + 1,
+                        $line->item?->item_name ?? $line->requested_item_name,
+                        $line->formattedQuantity(),
+                        $line->item?->baseUom?->code ?? '',
+                    )))
+                    ->all(),
             ]);
 
         return view('livewire.item-request-form', [

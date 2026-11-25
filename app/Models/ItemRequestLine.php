@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Number;
 
 #[Fillable([
     'item_request_id',
@@ -70,6 +71,11 @@ class ItemRequestLine extends Model
     public function isApproved(): bool
     {
         return $this->approval_status === self::APPROVAL_APPROVED;
+    }
+
+    public function formattedQuantity(): string
+    {
+        return Number::format((float) $this->quantity, maxPrecision: 3, locale: app()->getLocale());
     }
 
     public function isRejected(): bool
