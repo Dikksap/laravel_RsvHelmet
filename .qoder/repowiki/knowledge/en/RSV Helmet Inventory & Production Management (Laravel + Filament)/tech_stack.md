@@ -1,0 +1,1 @@
+PHP 8.3 + Laravel 13.17, Filament v5 admin panel, Livewire, Tailwind CSS v4 + Vite, barryvdh/laravel-dompdf for PDF generation, MariaDB 11 as database, Docker Compose for development, Nginx + Supervisor for production.

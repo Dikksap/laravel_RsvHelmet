@@ -1,0 +1,1 @@
+Laravel 13 application providing inventory, production batch, stock-opname, item-request, and external-barang synchronization features via a Filament admin panel and Livewire public forms.

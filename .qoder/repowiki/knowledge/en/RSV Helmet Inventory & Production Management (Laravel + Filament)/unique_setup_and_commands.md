@@ -1,0 +1,1 @@
+Run `composer run setup` to install deps, copy `.env.example`, generate key, migrate, then `npm install && npm run build`. Development server via `composer run dev` (Laravel Pail). Tests via `composer run test` which clears config before `php artisan test`. Production deployment uses `deploy.sh` and `docker-compose.prod.yml` with Nginx/Supervisor under `docker/production/`.

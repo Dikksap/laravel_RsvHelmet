@@ -3,40 +3,14 @@ schema_version: 1
 locale: en-US
 branch: master
 nodes_managed: true
-exported_at: "2026-11-25T02:42:16Z"
+exported_at: "2026-11-25T03:42:02Z"
 modules:
     "":
-        dir_name: RSV Helmet Warehouse Management Application
-        title: RSV Helmet Warehouse Management Application
-        scope:
-            - README.md
-            - AGENTS.md
-            - CLAUDE.md
-            - composer.json
-            - package.json
-            - phpunit.xml
-            - vite.config.js
-            - deploy.sh
-            - .dockerignore
-            - .editorconfig
-            - .gitattributes
-            - .gitignore
-            - .npmrc
-            - boost.json
-            - .env.example
-            - .mcp.json
-            - artisan
-            - composer.lock
-            - package-lock.json
+        dir_name: RSV Helmet Inventory & Production Management (Laravel + Filament)
+        title: RSV Helmet Inventory & Production Management (Laravel + Filament)
+        scope: []
         source_files: []
-        children:
-            - business_domain
-            - database_schema
-            - deployment_infrastructure
-            - filament_admin_ui
-            - http_layer
-            - livewire_components
-            - test_suite
+        children: []
         depends_on: []
         related_to: []
     business_domain:

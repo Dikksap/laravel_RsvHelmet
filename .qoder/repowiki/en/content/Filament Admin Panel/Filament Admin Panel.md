@@ -11,8 +11,8 @@
 - [WarehouseResource.php](file://app/Filament/Resources/Warehouses/WarehouseResource.php)
 - [StockOpnameResource.php](file://app/Filament/Resources/StockOpnames/StockOpnameResource.php)
 - [InventoryBalanceResource.php](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php)
-- [ProductionOverview.php](file://app/Filament/Widgets/ProductionOverview.php)
-- [BatchProgressChart.php](file://app/Filament/Widgets/BatchProgressChart.php)
+- [OutOfStockItemsTable.php](file://app/Filament/Widgets/OutOfStockItemsTable.php)
+- [RecentMovementsTable.php](file://app/Filament/Widgets/RecentMovementsTable.php)
 - [BomBuilder.php](file://app/Filament/Pages/BomBuilder.php)
 - [ItemComponentsRelationManager.php](file://app/Filament/Resources/Items/RelationManagers/ItemComponentsRelationManager.php)
 - [LinesRelationManager.php](file://app/Filament/Resources/StockOpnames/RelationManagers/LinesRelationManager.php)
@@ -28,12 +28,10 @@
 
 ## Update Summary
 **Changes Made**
-- Updated documentation to reflect comprehensive Filament Admin Panel implementation with authentication system
-- Added complete CRUD resources for items, production batches, inventory balances, and stock operations
-- Documented custom pages including dashboard, batch realization, BOM builder, and warehouse stock management
-- Enhanced coverage of import/export functionality and custom form components
-- Added detailed documentation for analytics widgets and dashboard components
-- Updated architecture diagrams to reflect new warehouse stock management pages and their relationships
+- Updated documentation to reflect dashboard simplification: Dashboard.php was significantly simplified by removing custom subheadings, column configurations, and header actions
+- Enhanced navigation structure with new 'Halaman Utama' (Main Page) item in AdminPanelProvider
+- Simplified dashboard architecture focusing on essential widgets only
+- Updated widget references to match current implementation (OutOfStockItemsTable and RecentMovementsTable)
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -48,7 +46,7 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-This document explains the comprehensive Filament admin panel implementation for inventory, production, and master data management. The system includes a complete authentication system, full CRUD resources for all business entities, custom pages for complex workflows, import/export functionality, custom form components, and advanced analytics widgets. The panel provides enhanced warehouse stock management with dedicated pages for per-warehouse stock viewing, inventory balance summaries, and stock card tracking. It also includes guidelines for adding new resources and customizing existing ones.
+This document explains the comprehensive Filament admin panel implementation for inventory, production, and master data management. The system includes a complete authentication system, full CRUD resources for all business entities, custom pages for complex workflows, import/export functionality, custom form components, and streamlined analytics widgets. The panel provides enhanced warehouse stock management with dedicated pages for per-warehouse stock viewing, inventory balance summaries, and stock card tracking. It also includes guidelines for adding new resources and customizing existing ones.
 
 ## Project Structure
 The admin panel is configured through a single provider that registers navigation groups, discovers resources and widgets, mounts custom pages, and applies theme and middleware. Resources are organized by domain under Filament/Resources with associated Pages and RelationManagers. Custom form components live under Filament/Forms/Components, and dashboard widgets under Filament/Widgets. The system includes specialized warehouse management pages under Filament/Pages for enhanced inventory control. Styling is centralized in a Vite-managed CSS file.
@@ -56,12 +54,13 @@ The admin panel is configured through a single provider that registers navigatio
 ```mermaid
 graph TB
 Provider["AdminPanelProvider"] --> NavGroups["Navigation Groups<br/>Gudang, Permintaan Barang, Produksi, Integrasi Eksternal, Data Master"]
+Provider --> NavItems["Navigation Items<br/>Halaman Utama"]
 Provider --> DiscoverResources["Discover Resources"]
 Provider --> DiscoverPages["Discover Pages"]
 Provider --> DiscoverWidgets["Discover Widgets"]
 Provider --> Theme["Vite Theme<br/>admin/theme.css"]
 Provider --> Middleware["Middleware Stack"]
-DashboardPage["Dashboard Page"] --> HeaderActions["Header Actions<br/>Reports, New Batch"]
+DashboardPage["Simplified Dashboard Page"] --> EssentialWidgets["Essential Widgets<br/>OutOfStockItemsTable, RecentMovementsTable"]
 WarehousePages["Warehouse Stock Pages"] --> InventoryIntegration["Inventory Management Integration"]
 ItemRes["Item Resource"] --> BomLink["BOM Builder Link"]
 BomPage["BOM Builder Page"] --> BOMTree["Composition Tree & Shopping List"]
@@ -70,22 +69,22 @@ ImportExport["Import/Export System"] --> BulkOperations["Bulk Operations"]
 ```
 
 **Diagram sources**
-- [AdminPanelProvider.php:31-96](file://app/Providers/Filament/AdminPanelProvider.php#L31-L96)
-- [Dashboard.php:23-35](file://app/Filament/Pages/Dashboard.php#L23-L35)
+- [AdminPanelProvider.php:31-61](file://app/Providers/Filament/AdminPanelProvider.php#L31-L61)
+- [Dashboard.php:7-15](file://app/Filament/Pages/Dashboard.php#L7-L15)
 - [ItemResource.php:261-278](file://app/Filament/Resources/Items/ItemResource.php#L261-L278)
 - [BomBuilder.php:26-42](file://app/Filament/Pages/BomBuilder.php#L26-L42)
 - [WarehouseStock.php:15-29](file://app/Filament/Pages/WarehouseStock.php#L15-L29)
 
 **Section sources**
-- [AdminPanelProvider.php:31-96](file://app/Providers/Filament/AdminPanelProvider.php#L31-L96)
+- [AdminPanelProvider.php:31-61](file://app/Providers/Filament/AdminPanelProvider.php#L31-L61)
 
 ## Core Components
 - Panel configuration and registration:
   - Default panel id and path, login page, primary color, Vite theme, SPA mode, relation manager behavior, navigation groups, discovery of resources/pages/widgets, registered widgets, render hooks, and middleware stack.
 - Authentication system:
   - Custom login page with branding integration and lockup partials.
-- Dashboard page:
-  - Title, subheading, column layout, header actions linking to reports and batch creation.
+- **Simplified Dashboard page**:
+  - Minimal configuration with single-column layout focused on essential widgets.
 - Custom form component InfiniteSelect:
   - Extends base infinite select to support paginated options and search results via exposed methods.
 - Key resources:
@@ -99,14 +98,13 @@ ImportExport["Import/Export System"] --> BulkOperations["Bulk Operations"]
   - WarehouseStockDetail: Detailed stock listing per warehouse with summary statistics and filtering capabilities.
   - InventoryBalanceSummary: Comprehensive inventory overview across all warehouses with advanced filtering.
   - StockCard: Transaction history with running balance calculations and production batch tracking.
-- Dashboard widgets:
-  - Production overview stats with polling interval.
-  - Batch progress bar chart comparing planned vs actual quantities.
-  - Additional analytics widgets for batch status and recent completed batches.
+- **Streamlined dashboard widgets**:
+  - OutOfStockItemsTable: Displays items with zero or minimum stock levels.
+  - RecentMovementsTable: Shows recent inventory transactions with type indicators.
 
 **Section sources**
 - [AdminPanelProvider.php:31-96](file://app/Providers/Filament/AdminPanelProvider.php#L31-L96)
-- [Dashboard.php:9-35](file://app/Filament/Pages/Dashboard.php#L9-L35)
+- [Dashboard.php:7-15](file://app/Filament/Pages/Dashboard.php#L7-L15)
 - [InfiniteSelect.php:9-41](file://app/Filament/Forms/Components/InfiniteSelect.php#L9-L41)
 - [ItemResource.php:55-278](file://app/Filament/Resources/Items/ItemResource.php#L55-L278)
 - [ProductionBatchResource.php:33-196](file://app/Filament/Resources/ProductionBatches/ProductionBatchResource.php#L33-L196)
@@ -117,16 +115,16 @@ ImportExport["Import/Export System"] --> BulkOperations["Bulk Operations"]
 - [WarehouseStockDetail.php:19-149](file://app/Filament/Pages/WarehouseStockDetail.php#L19-L149)
 - [InventoryBalanceSummary.php:22-243](file://app/Filament/Pages/InventoryBalanceSummary.php#L22-L243)
 - [StockCard.php:17-128](file://app/Filament/Pages/StockCard.php#L17-L128)
-- [ProductionOverview.php:10-39](file://app/Filament/Widgets/ProductionOverview.php#L10-L39)
-- [BatchProgressChart.php:8-60](file://app/Filament/Widgets/BatchProgressChart.php#L8-L60)
+- [OutOfStockItemsTable.php:13-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L13-L64)
+- [RecentMovementsTable.php:13-79](file://app/Filament/Widgets/RecentMovementsTable.php#L13-L79)
 
 ## Architecture Overview
 The admin panel follows a layered structure:
 - Provider layer configures the panel, navigation, discovery, widgets, and middleware.
 - Authentication layer provides secure access with custom branding.
-- Pages provide custom UI beyond standard CRUD, such as the dashboard, BOM builder, and enhanced warehouse stock management interfaces.
+- Pages provide custom UI beyond standard CRUD, such as the simplified dashboard, BOM builder, and enhanced warehouse stock management interfaces.
 - Resources encapsulate model-specific forms, tables, filters, actions, and relations.
-- Widgets deliver dashboard analytics using services.
+- Widgets deliver essential dashboard analytics using services.
 - Custom form components extend Filament's capabilities for large datasets.
 
 ```mermaid
@@ -140,9 +138,7 @@ class AuthSystem {
 +lockup()
 }
 class Dashboard {
-+getSubheading()
 +getColumns()
-+getHeaderActions()
 }
 class WarehouseStock {
 +getWarehouses()
@@ -192,13 +188,11 @@ class InventoryBalanceResource {
 +transferBulkAction()
 +getPages()
 }
-class ProductionOverview {
-+getStats()
+class OutOfStockItemsTable {
++table(table)
 }
-class BatchProgressChart {
-+getData()
-+getType()
-+getOptions()
+class RecentMovementsTable {
++table(table)
 }
 class InfiniteSelect {
 +getOptionsForJs()
@@ -221,8 +215,8 @@ AdminPanelProvider --> ProductionBatchResource : "discovers"
 AdminPanelProvider --> WarehouseResource : "discovers"
 AdminPanelProvider --> StockOpnameResource : "discovers"
 AdminPanelProvider --> InventoryBalanceResource : "discovers"
-AdminPanelProvider --> ProductionOverview : "registers widget"
-AdminPanelProvider --> BatchProgressChart : "registers widget"
+AdminPanelProvider --> OutOfStockItemsTable : "registers widget"
+AdminPanelProvider --> RecentMovementsTable : "registers widget"
 ItemResource --> InfiniteSelect : "uses"
 InventoryBalanceResource --> InfiniteSelect : "uses"
 BomBuilder --> InfiniteSelect : "uses"
@@ -233,7 +227,7 @@ InventoryBalanceSummary --> WarehouseStock : "links to"
 
 **Diagram sources**
 - [AdminPanelProvider.php:31-96](file://app/Providers/Filament/AdminPanelProvider.php#L31-L96)
-- [Dashboard.php:9-35](file://app/Filament/Pages/Dashboard.php#L9-L35)
+- [Dashboard.php:7-15](file://app/Filament/Pages/Dashboard.php#L7-L15)
 - [WarehouseStock.php:15-89](file://app/Filament/Pages/WarehouseStock.php#L15-L89)
 - [WarehouseStockDetail.php:19-149](file://app/Filament/Pages/WarehouseStockDetail.php#L19-L149)
 - [InventoryBalanceSummary.php:22-243](file://app/Filament/Pages/InventoryBalanceSummary.php#L22-L243)
@@ -243,8 +237,8 @@ InventoryBalanceSummary --> WarehouseStock : "links to"
 - [WarehouseResource.php:26-130](file://app/Filament/Resources/Warehouses/WarehouseResource.php#L26-L130)
 - [StockOpnameResource.php:27-205](file://app/Filament/Resources/StockOpnames/StockOpnameResource.php#L27-L205)
 - [InventoryBalanceResource.php:43-445](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L43-L445)
-- [ProductionOverview.php:10-39](file://app/Filament/Widgets/ProductionOverview.php#L10-L39)
-- [BatchProgressChart.php:8-60](file://app/Filament/Widgets/BatchProgressChart.php#L8-L60)
+- [OutOfStockItemsTable.php:13-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L13-L64)
+- [RecentMovementsTable.php:13-79](file://app/Filament/Widgets/RecentMovementsTable.php#L13-L79)
 - [InfiniteSelect.php:9-41](file://app/Filament/Forms/Components/InfiniteSelect.php#L9-L41)
 - [BomBuilder.php:26-42](file://app/Filament/Pages/BomBuilder.php#L26-L42)
 
@@ -253,6 +247,7 @@ InventoryBalanceSummary --> WarehouseStock : "links to"
 ### Panel Configuration and Navigation
 - The panel sets default id/path, login page, primary color, Vite theme, SPA mode, and disables read-only relation managers on resource view pages by default.
 - Navigation groups: Gudang, Permintaan Barang, Produksi, Integrasi Eksternal, Data Master (all collapsible).
+- **Enhanced navigation items**: Added "Halaman Utama" (Main Page) navigation item with external link icon pointing to the main application URL.
 - Discovery: resources, pages, and widgets are auto-discovered; specific widgets are explicitly registered.
 - Render hooks inject branding and lockup partials into auth layouts and append an SPA fix script at body end.
 - Middleware includes encryption, session handling, CSRF protection, binding substitution, and Filament-specific middleware.
@@ -261,8 +256,9 @@ InventoryBalanceSummary --> WarehouseStock : "links to"
 flowchart TD
 Start([Panel Boot]) --> Config["Set id, path, login, colors, theme, SPA"]
 Config --> Nav["Define navigation groups"]
-Nav --> Discover["Discover resources/pages/widgets"]
-Discover --> Widgets["Register dashboard widgets"]
+Nav --> NavItems["Add Halaman Utama navigation item"]
+NavItems --> Discover["Discover resources/pages/widgets"]
+Discover --> Widgets["Register essential dashboard widgets"]
 Widgets --> Hooks["Render hooks for branding and SPA fix"]
 Hooks --> Middleware["Apply request middleware"]
 Middleware --> End([Ready])
@@ -282,27 +278,25 @@ Middleware --> End([Ready])
 **Section sources**
 - [AdminPanelProvider.php:71-82](file://app/Providers/Filament/AdminPanelProvider.php#L71-L82)
 
-### Dashboard Page
-- Displays a title and subheading focused on production batch progress.
-- Uses a two-column grid for widgets.
-- Header actions provide quick links to batch realization reports and creating a new production batch.
+### Simplified Dashboard Page
+- **Updated**: Now provides minimal configuration with single-column layout for essential widgets.
+- Removed custom subheading, header actions, and complex widget configurations.
+- Focuses on clean presentation of OutOfStockItemsTable and RecentMovementsTable widgets.
 
 ```mermaid
 sequenceDiagram
 participant User as "User"
-participant Dashboard as "Dashboard Page"
-participant Actions as "Header Actions"
+participant Dashboard as "Simplified Dashboard"
 User->>Dashboard : Open dashboard
-Dashboard-->>User : Render title/subheading/columns
-Dashboard->>Actions : getHeaderActions()
-Actions-->>User : Reports URL, Create Batch URL
+Dashboard-->>User : Render single-column layout
+Dashboard-->>User : Display essential widgets
 ```
 
 **Diagram sources**
-- [Dashboard.php:9-35](file://app/Filament/Pages/Dashboard.php#L9-L35)
+- [Dashboard.php:7-15](file://app/Filament/Pages/Dashboard.php#L7-L15)
 
 **Section sources**
-- [Dashboard.php:9-35](file://app/Filament/Pages/Dashboard.php#L9-L35)
+- [Dashboard.php:7-15](file://app/Filament/Pages/Dashboard.php#L7-L15)
 
 ### Enhanced Warehouse Stock Management Pages
 
@@ -587,29 +581,34 @@ Update --> Notify["Notification feedback"]
 - [ItemComponentsRelationManager.php:23-125](file://app/Filament/Resources/Items/RelationManagers/ItemComponentsRelationManager.php#L23-L125)
 - [LinesRelationManager.php:27-229](file://app/Filament/Resources/StockOpnames/RelationManagers/LinesRelationManager.php#L27-L229)
 
-### Dashboard Widgets
-- ProductionOverview:
-  - Stats overview with polling interval, showing running batches, planned/actual quantities, and total progress percentage.
-- BatchProgressChart:
-  - Horizontal bar chart comparing planned vs actual quantities for running batches.
-- Additional widgets for batch status analysis and recent completed batches tracking.
+### Streamlined Dashboard Widgets
+- **OutOfStockItemsTable**:
+  - Displays items with zero or below minimum stock levels.
+  - Shows item code, name, warehouse, stock quantity, minimum quantity, and stock status.
+  - Limited to 8 items for quick overview.
+  - Links to full inventory balance list.
+- **RecentMovementsTable**:
+  - Shows recent inventory transactions with timestamps, types, and quantities.
+  - Color-codes incoming/outgoing transactions.
+  - Includes production batch information when available.
+  - Limited to 8 recent transactions for quick overview.
 
 ```mermaid
 sequenceDiagram
 participant Widget as "Widget"
-participant Service as "BatchProgressService"
-Widget->>Service : summary()/runningBatches()
-Service-->>Widget : aggregated metrics
-Widget-->>User : render stats/chart
+participant Database as "Database"
+Widget->>Database : Query recent movements/out-of-stock items
+Database-->>Widget : Return filtered data
+Widget-->>User : Render table with limited results
 ```
 
 **Diagram sources**
-- [ProductionOverview.php:18-39](file://app/Filament/Widgets/ProductionOverview.php#L18-L39)
-- [BatchProgressChart.php:18-59](file://app/Filament/Widgets/BatchProgressChart.php#L18-L59)
+- [OutOfStockItemsTable.php:19-62](file://app/Filament/Widgets/OutOfStockItemsTable.php#L19-L62)
+- [RecentMovementsTable.php:19-77](file://app/Filament/Widgets/RecentMovementsTable.php#L19-L77)
 
 **Section sources**
-- [ProductionOverview.php:10-39](file://app/Filament/Widgets/ProductionOverview.php#L10-L39)
-- [BatchProgressChart.php:8-60](file://app/Filament/Widgets/BatchProgressChart.php#L8-L60)
+- [OutOfStockItemsTable.php:13-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L13-L64)
+- [RecentMovementsTable.php:13-79](file://app/Filament/Widgets/RecentMovementsTable.php#L13-L79)
 
 ## Dependency Analysis
 - Provider depends on:
@@ -621,13 +620,13 @@ Widget-->>User : render stats/chart
   - Warehouse models for location-based filtering.
   - InventoryMovement models for stock card functionality.
 - Widgets depend on:
-  - Services for data aggregation.
+  - Models for data retrieval.
 - Pages depend on:
   - Models and services; BOM Builder integrates with Item and ItemComponent models.
 
 ```mermaid
 graph LR
-Provider["AdminPanelProvider"] --> Widgets["Widgets"]
+Provider["AdminPanelProvider"] --> Widgets["Essential Widgets"]
 Provider --> Pages["Pages"]
 Provider --> Resources["Resources"]
 Pages --> WarehousePages["Enhanced Warehouse Stock Pages"]
@@ -636,7 +635,7 @@ WarehousePages --> WarehouseModels["Warehouse Models"]
 Resources --> Models["Models"]
 Resources --> Services["Services"]
 Resources --> Components["Custom Components"]
-Widgets --> Services
+Widgets --> Models
 Pages --> Models
 Pages --> Services
 ```
@@ -648,20 +647,25 @@ Pages --> Services
 - [InventoryBalanceSummary.php:22-243](file://app/Filament/Pages/InventoryBalanceSummary.php#L22-L243)
 - [StockCard.php:17-128](file://app/Filament/Pages/StockCard.php#L17-L128)
 - [InventoryBalanceResource.php:385-401](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L385-L401)
-- [ProductionOverview.php:18-39](file://app/Filament/Widgets/ProductionOverview.php#L18-L39)
+- [OutOfStockItemsTable.php:19-62](file://app/Filament/Widgets/OutOfStockItemsTable.php#L19-L62)
+- [RecentMovementsTable.php:19-77](file://app/Filament/Widgets/RecentMovementsTable.php#L19-L77)
 - [BomBuilder.php:214-264](file://app/Filament/Pages/BomBuilder.php#L214-L264)
 
 **Section sources**
 - [AdminPanelProvider.php:31-96](file://app/Providers/Filament/AdminPanelProvider.php#L31-L96)
 - [InventoryBalanceResource.php:385-401](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L385-L401)
-- [ProductionOverview.php:18-39](file://app/Filament/Widgets/ProductionOverview.php#L18-L39)
+- [OutOfStockItemsTable.php:19-62](file://app/Filament/Widgets/OutOfStockItemsTable.php#L19-L62)
+- [RecentMovementsTable.php:19-77](file://app/Filament/Widgets/RecentMovementsTable.php#L19-L77)
 - [BomBuilder.php:214-264](file://app/Filament/Pages/BomBuilder.php#L214-L264)
 
 ## Performance Considerations
 - Use InfiniteSelect for large option sets to avoid heavy client-side payloads.
 - Enable infinite lists on tables to improve responsiveness with large datasets.
 - Aggregate data in queries (e.g., withSum/withCount) to reduce N+1 issues.
-- Polling intervals on widgets should be balanced against server load.
+- **Streamlined widgets optimize performance through**:
+  - Limited result sets (8 items maximum) for quick dashboard loading.
+  - Efficient database queries with proper indexing.
+  - No polling intervals on essential widgets to reduce server load.
 - Bulk operations should group by origin and use transactions to minimize DB round-trips.
 - **Enhanced warehouse pages optimize performance through**:
   - Efficient warehouse counting with eager loading of balance statistics.
@@ -688,19 +692,25 @@ Pages --> Services
   - Stock card running balance incorrect: Ensure inventory movements are properly ordered by occurred_at and id.
   - Inventory summary filters not working: Check warehouse filter state parsing in getSelectedWarehouseIds().
   - Authentication issues: Verify custom login page is properly configured and branding partials are accessible.
+- **Dashboard troubleshooting**:
+  - Widgets not displaying: Check widget registration in AdminPanelProvider and ensure widgets are properly discovered.
+  - Single column layout issues: Verify Dashboard.php getColumns() method returns correct value.
+  - Navigation item not appearing: Check AdminPanelProvider navigationItems configuration.
 
 **Section sources**
 - [InfiniteSelect.php:16-41](file://app/Filament/Forms/Components/InfiniteSelect.php#L16-L41)
 - [InventoryBalanceResource.php:330-419](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L330-L419)
 - [ItemComponentsRelationManager.php:66-74](file://app/Filament/Resources/Items/RelationManagers/ItemComponentsRelationManager.php#L66-L74)
-- [StockOpnameResource.php:168-173](file://app/Filament/Resources/StockOpnames/StockOpnameResource.php#L168-L173)
+- [StockOpnameResource.php:168-173](file://app/Filament/Resources/StockOpnames/RelationManagers/LinesRelationManager.php#L168-L173)
 - [WarehouseStock.php:31-46](file://app/Filament/Pages/WarehouseStock.php#L31-L46)
 - [StockCard.php:46-52](file://app/Filament/Pages/StockCard.php#L46-L52)
 - [InventoryBalanceSummary.php:206-214](file://app/Filament/Pages/InventoryBalanceSummary.php#L206-L214)
 - [AdminPanelProvider.php:71-82](file://app/Providers/Filament/AdminPanelProvider.php#L71-L82)
+- [Dashboard.php:11-14](file://app/Filament/Pages/Dashboard.php#L11-L14)
+- [AdminPanelProvider.php:56-61](file://app/Providers/Filament/AdminPanelProvider.php#L56-L61)
 
 ## Conclusion
-The comprehensive Filament admin panel provides a robust foundation for managing inventory, production, and master data. With the addition of enhanced warehouse stock management pages, authentication system, and advanced analytics widgets, the system now offers complete visibility and control over inventory levels across multiple locations. The new pages provide intuitive interfaces for monitoring stock levels, tracking transactions, and analyzing inventory trends. Following the patterns outlined here will help you extend the system consistently and maintain performance and usability.
+The streamlined Filament admin panel provides a robust foundation for managing inventory, production, and master data. With the simplified dashboard focusing on essential widgets, enhanced warehouse stock management pages, authentication system, and optimized navigation, the system now offers efficient visibility and control over inventory levels across multiple locations. The new streamlined approach reduces complexity while maintaining essential functionality, providing intuitive interfaces for monitoring stock levels, tracking transactions, and analyzing inventory trends. Following the patterns outlined here will help you extend the system consistently and maintain performance and usability.
 
 [No sources needed since this section summarizes without analyzing specific files]
 
@@ -755,6 +765,11 @@ Auth --> Mobile["Mobile stacked layout"]
   - Extend the custom login page for additional branding requirements.
   - Configure render hooks for consistent branding across all auth pages.
   - Test middleware stack to ensure proper security and session handling.
+- **For dashboard customization**:
+  - Keep dashboard simple with essential widgets only.
+  - Use single-column layout for better mobile responsiveness.
+  - Limit widget data to essential information for quick loading.
+  - Consider adding navigation items for quick access to key features.
 
 **Section sources**
 - [ItemResource.php:37-298](file://app/Filament/Resources/Items/ItemResource.php#L37-L298)
@@ -767,3 +782,5 @@ Auth --> Mobile["Mobile stacked layout"]
 - [InventoryBalanceSummary.php:22-243](file://app/Filament/Pages/InventoryBalanceSummary.php#L22-L243)
 - [StockCard.php:17-128](file://app/Filament/Pages/StockCard.php#L17-L128)
 - [AdminPanelProvider.php:71-82](file://app/Providers/Filament/AdminPanelProvider.php#L71-L82)
+- [Dashboard.php:7-15](file://app/Filament/Pages/Dashboard.php#L7-L15)
+- [AdminPanelProvider.php:56-61](file://app/Providers/Filament/AdminPanelProvider.php#L56-L61)

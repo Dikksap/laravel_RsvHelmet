@@ -2,15 +2,21 @@
 
 <cite>
 **Referenced Files in This Document**
-- [ProductionOverview.php](file://app/Filament/Widgets/ProductionOverview.php)
-- [BatchProgressChart.php](file://app/Filament/Widgets/BatchProgressChart.php)
-- [BatchStatusChart.php](file://app/Filament/Widgets/BatchStatusChart.php)
-- [BatchProgressTable.php](file://app/Filament/Widgets/BatchProgressTable.php)
-- [RecentCompletedBatchesTable.php](file://app/Filament/Widgets/RecentCompletedBatchesTable.php)
-- [BatchProgressService.php](file://app/Services/BatchProgressService.php)
-- [ProductionBatch.php](file://app/Models/ProductionBatch.php)
+- [OutOfStockItemsTable.php](file://app/Filament/Widgets/OutOfStockItemsTable.php)
+- [RecentMovementsTable.php](file://app/Filament/Widgets/RecentMovementsTable.php)
 - [Dashboard.php](file://app/Filament/Pages/Dashboard.php)
+- [InventoryBalance.php](file://app/Models/InventoryBalance.php)
+- [InventoryMovement.php](file://app/Models/InventoryMovement.php)
+- [InventoryBalanceResource.php](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Complete replacement of production monitoring widgets with inventory-focused widgets
+- Removed documentation for BatchProgressChart, BatchProgressTable, BatchStatusChart, ProductionOverview, and RecentCompletedBatchesTable
+- Added documentation for OutOfStockItemsTable and RecentMovementsTable widgets
+- Updated architecture to focus on inventory management instead of production batch tracking
+- Revised all diagrams and examples to reflect the new inventory system
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -25,24 +31,21 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-This document explains the dashboard widgets that visualize production batch progress and completion metrics. It covers:
-- The production overview widget showing key metrics and KPIs
-- Chart widgets for batch progress visualization using Filament’s Chart.js integration
-- Status tracking via a doughnut chart
-- Table widgets for recent completed batches and production statistics
-- Widget lifecycle methods, data fetching strategies, caching mechanisms, and responsive design considerations
-- Examples for creating custom widgets and integrating external data sources
+This document explains the dashboard widgets that provide inventory management insights through real-time stock monitoring and movement tracking. It covers:
+- Inventory-focused widgets replacing production monitoring functionality
+- Table widgets for displaying out-of-stock items and recent inventory movements
+- Real-time inventory status tracking with stock level monitoring
+- Widget lifecycle methods, data fetching strategies, and responsive design considerations
+- Examples of creating custom inventory widgets and integrating with inventory models
 
-The implementation uses Filament widgets backed by a dedicated service layer to aggregate batch data from Eloquent models.
+The implementation uses Filament table widgets backed by inventory models to provide comprehensive inventory visibility and control.
 
 ## Project Structure
 The dashboard is composed of:
-- A Filament dashboard page that hosts widgets
-- Stats overview widget for high-level KPIs
-- Chart widgets for visualizing running batch progress and status distribution
-- Table widgets for detailed views of running and completed batches
-- A service class that encapsulates query logic and calculations
-- An Eloquent model defining batch statuses and relationships
+- A Filament dashboard page that hosts inventory widgets
+- Table widgets for monitoring stock levels and tracking inventory movements
+- Inventory models defining stock balances and movement types
+- Resource classes providing reusable components and business logic
 
 ```mermaid
 graph TB
@@ -50,400 +53,338 @@ subgraph "Filament Pages"
 D["Dashboard.php"]
 end
 subgraph "Filament Widgets"
-PO["ProductionOverview.php"]
-BPC["BatchProgressChart.php"]
-BSC["BatchStatusChart.php"]
-BPT["BatchProgressTable.php"]
-RCBT["RecentCompletedBatchesTable.php"]
-end
-subgraph "Domain Services"
-BPS["BatchProgressService.php"]
+OOST["OutOfStockItemsTable.php"]
+RMT["RecentMovementsTable.php"]
 end
 subgraph "Domain Models"
-PB["ProductionBatch.php"]
+IB["InventoryBalance.php"]
+IM["InventoryMovement.php"]
 end
-D --> PO
-D --> BPC
-D --> BSC
-D --> BPT
-D --> RCBT
-PO --> BPS
-BPC --> BPS
-BSC --> BPS
-BPT --> PB
-RCBT --> PB
-BPS --> PB
+subgraph "Resources"
+IBR["InventoryBalanceResource.php"]
+end
+D --> OOST
+D --> RMT
+OOST --> IB
+OOST --> IBR
+RMT --> IM
 ```
 
 **Diagram sources**
-- [Dashboard.php:1-37](file://app/Filament/Pages/Dashboard.php#L1-L37)
-- [ProductionOverview.php:1-40](file://app/Filament/Widgets/ProductionOverview.php#L1-L40)
-- [BatchProgressChart.php:1-61](file://app/Filament/Widgets/BatchProgressChart.php#L1-L61)
-- [BatchStatusChart.php:1-44](file://app/Filament/Widgets/BatchStatusChart.php#L1-L44)
-- [BatchProgressTable.php:1-100](file://app/Filament/Widgets/BatchProgressTable.php#L1-L100)
-- [RecentCompletedBatchesTable.php:1-68](file://app/Filament/Widgets/RecentCompletedBatchesTable.php#L1-L68)
-- [BatchProgressService.php:1-152](file://app/Services/BatchProgressService.php#L1-L152)
-- [ProductionBatch.php:1-117](file://app/Models/ProductionBatch.php#L1-L117)
+- [Dashboard.php:1-16](file://app/Filament/Pages/Dashboard.php#L1-L16)
+- [OutOfStockItemsTable.php:1-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L1-L64)
+- [RecentMovementsTable.php:1-79](file://app/Filament/Widgets/RecentMovementsTable.php#L1-L79)
+- [InventoryBalance.php:1-71](file://app/Models/InventoryBalance.php#L1-L71)
+- [InventoryMovement.php:1-196](file://app/Models/InventoryMovement.php#L1-L196)
+- [InventoryBalanceResource.php:1-445](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L1-L445)
 
 **Section sources**
-- [Dashboard.php:1-37](file://app/Filament/Pages/Dashboard.php#L1-L37)
+- [Dashboard.php:1-16](file://app/Filament/Pages/Dashboard.php#L1-L16)
 
 ## Core Components
-- ProductionOverview: Displays KPIs such as running batches, planned vs actual output, and overall progress percentage. Uses a stats overview widget with polling enabled.
-- BatchProgressChart: Horizontal bar chart comparing planned vs realized quantities for running batches.
-- BatchStatusChart: Doughnut chart showing the distribution of batches across statuses.
-- BatchProgressTable: Detailed table of running/planned batches with filters, actions, and real-time updates.
-- RecentCompletedBatchesTable: Summary table of recently completed batches with progress percentages.
-- BatchProgressService: Centralized service for aggregating batch metrics, computing percentages, and providing datasets for charts and tables.
-- ProductionBatch: Model defining batch statuses, relationships, and computed attributes used by widgets and services.
+- **OutOfStockItemsTable**: Displays items with zero or low stock levels, including item details, warehouse information, stock quantities, and stock status badges.
+- **RecentMovementsTable**: Shows the most recent inventory movements with type classification, quantity tracking, and associated batch information.
+- **InventoryBalance**: Model representing stock levels per warehouse-item combination with computed stock status attributes.
+- **InventoryMovement**: Model tracking all inventory changes with type classification, directional indicators, and relationship mappings.
+- **InventoryBalanceResource**: Provides reusable components like stock status columns and filters used across the application.
 
 Key responsibilities:
-- Data aggregation and calculation are centralized in BatchProgressService to avoid duplication across widgets.
-- Charts use Filament’s ChartWidget API which renders Chart.js visuals on the frontend.
-- Tables use Filament’s TableWidget API with Eloquent queries, filters, and actions.
+- Stock monitoring and alerting through out-of-stock detection
+- Movement tracking and visualization with directional indicators
+- Status computation and presentation through computed attributes
+- Reusable UI components through resource methods
 
 **Section sources**
-- [ProductionOverview.php:1-40](file://app/Filament/Widgets/ProductionOverview.php#L1-L40)
-- [BatchProgressChart.php:1-61](file://app/Filament/Widgets/BatchProgressChart.php#L1-L61)
-- [BatchStatusChart.php:1-44](file://app/Filament/Widgets/BatchStatusChart.php#L1-L44)
-- [BatchProgressTable.php:1-100](file://app/Filament/Widgets/BatchProgressTable.php#L1-L100)
-- [RecentCompletedBatchesTable.php:1-68](file://app/Filament/Widgets/RecentCompletedBatchesTable.php#L1-L68)
-- [BatchProgressService.php:1-152](file://app/Services/BatchProgressService.php#L1-L152)
-- [ProductionBatch.php:1-117](file://app/Models/ProductionBatch.php#L1-L117)
+- [OutOfStockItemsTable.php:1-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L1-L64)
+- [RecentMovementsTable.php:1-79](file://app/Filament/Widgets/RecentMovementsTable.php#L1-L79)
+- [InventoryBalance.php:1-71](file://app/Models/InventoryBalance.php#L1-L71)
+- [InventoryMovement.php:1-196](file://app/Models/InventoryMovement.php#L1-L196)
+- [InventoryBalanceResource.php:65-80](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L65-L80)
 
 ## Architecture Overview
-The dashboard follows a layered approach:
-- Presentation layer: Filament widgets render UI components (stats, charts, tables).
-- Service layer: BatchProgressService encapsulates business logic and data aggregation.
-- Domain layer: ProductionBatch model provides relationships and constants.
+The dashboard follows a clean separation between presentation (widgets), domain models, and business logic:
+- Presentation layer: Filament table widgets render inventory data
+- Domain layer: Inventory models provide relationships and computed attributes
+- Business logic: Resource classes encapsulate reusable components and validation
 
 ```mermaid
 sequenceDiagram
 participant User as "User"
 participant Page as "Dashboard.php"
-participant Widget as "Filament Widgets"
-participant Service as "BatchProgressService.php"
-participant Model as "ProductionBatch.php"
+participant Widget as "Inventory Widgets"
+participant Model as "Inventory Models"
 User->>Page : Open dashboard
-Page->>Widget : Render widgets
-Widget->>Service : summary(), runningBatches(), statusCounts()
-Service->>Model : Query batches, sums, counts
-Model-->>Service : Aggregated data
-Service-->>Widget : Metrics and datasets
-Widget-->>User : Stats, charts, tables
+Page->>Widget : Render inventory widgets
+Widget->>Model : Query stock levels and movements
+Model-->>Widget : Inventory data with computed attributes
+Widget-->>User : Tables showing stock status and movements
 ```
 
 **Diagram sources**
-- [Dashboard.php:1-37](file://app/Filament/Pages/Dashboard.php#L1-L37)
-- [ProductionOverview.php:1-40](file://app/Filament/Widgets/ProductionOverview.php#L1-L40)
-- [BatchProgressChart.php:1-61](file://app/Filament/Widgets/BatchProgressChart.php#L1-L61)
-- [BatchStatusChart.php:1-44](file://app/Filament/Widgets/BatchStatusChart.php#L1-L44)
-- [BatchProgressService.php:1-152](file://app/Services/BatchProgressService.php#L1-L152)
-- [ProductionBatch.php:1-117](file://app/Models/ProductionBatch.php#L1-L117)
+- [Dashboard.php:1-16](file://app/Filament/Pages/Dashboard.php#L1-L16)
+- [OutOfStockItemsTable.php:1-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L1-L64)
+- [RecentMovementsTable.php:1-79](file://app/Filament/Widgets/RecentMovementsTable.php#L1-L79)
+- [InventoryBalance.php:1-71](file://app/Models/InventoryBalance.php#L1-L71)
+- [InventoryMovement.php:1-196](file://app/Models/InventoryMovement.php#L1-L196)
 
 ## Detailed Component Analysis
 
-### ProductionOverview Widget
+### OutOfStockItemsTable Widget
 Purpose:
-- Show key production metrics: running batches count, planned quantity, actual quantity, and total progress percentage.
-- Provide localized number formatting and periodic refresh.
+- Monitor items with zero or critically low stock levels
+- Provide quick access to items requiring immediate attention
+- Display stock status with visual indicators and actionable insights
 
-Lifecycle and behavior:
-- Sorting and column span configured for layout control.
-- Polling interval set to refresh stats periodically.
-- getStats() fetches aggregated data from BatchProgressService and formats values for display.
+Key features:
+- Filters items where quantity_on_hand ≤ 0 OR quantity_on_hand ≤ minimum_quantity
+- Shows item code, name, warehouse, stock quantities, and computed stock status
+- Includes header action to view all inventory balances
+- Uses pagination disabled for focused display of critical items only
 
 Data flow:
-- Calls BatchProgressService.summary() to compute totals and percentage.
-- Uses Number::format() for locale-aware presentation.
+- Queries InventoryBalance model with complex filtering conditions
+- Eager loads related item and warehouse relationships
+- Applies sorting by stock level and minimum quantity thresholds
 
 ```mermaid
 flowchart TD
-Start(["Render StatsOverviewWidget"]) --> Fetch["Call BatchProgressService.summary()"]
-Fetch --> Format["Format numbers with locale"]
-Format --> Build["Build Stat items"]
-Build --> Render["Render stats grid"]
+Start(["Render OutOfStockItemsTable"]) --> Query["Query InventoryBalance with stock filters"]
+Query --> Load["Eager load item and warehouse relationships"]
+Load --> Filter["Apply stock status logic (out/low)"]
+Filter --> Display["Display with stock status badges"]
 ```
 
 **Diagram sources**
-- [ProductionOverview.php:1-40](file://app/Filament/Widgets/ProductionOverview.php#L1-L40)
-- [BatchProgressService.php:20-44](file://app/Services/BatchProgressService.php#L20-L44)
+- [OutOfStockItemsTable.php:19-62](file://app/Filament/Widgets/OutOfStockItemsTable.php#L19-L62)
+- [InventoryBalance.php:47-64](file://app/Models/InventoryBalance.php#L47-L64)
 
 **Section sources**
-- [ProductionOverview.php:1-40](file://app/Filament/Widgets/ProductionOverview.php#L1-L40)
-- [BatchProgressService.php:20-44](file://app/Services/BatchProgressService.php#L20-L44)
+- [OutOfStockItemsTable.php:1-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L1-L64)
+- [InventoryBalance.php:47-64](file://app/Models/InventoryBalance.php#L47-L64)
 
-### BatchProgressChart Widget
+### RecentMovementsTable Widget
 Purpose:
-- Visualize planned vs realized quantities for running batches using a horizontal bar chart.
-
-Lifecycle and behavior:
-- getData() retrieves running batches via BatchProgressService.runningBatches().
-- Maps batch data into Chart.js dataset structure with labels and two datasets (planned, realized).
-- getType() returns 'bar' and options configure axis orientation and legend placement.
-
-```mermaid
-flowchart TD
-Start(["Render ChartWidget"]) --> GetData["Call BatchProgressService.runningBatches()"]
-GetData --> Map["Map to Chart.js datasets"]
-Map --> Options["Configure bar chart options"]
-Options --> Render["Render Chart.js visualization"]
-```
-
-**Diagram sources**
-- [BatchProgressChart.php:1-61](file://app/Filament/Widgets/BatchProgressChart.php#L1-L61)
-- [BatchProgressService.php:54-63](file://app/Services/BatchProgressService.php#L54-L63)
-
-**Section sources**
-- [BatchProgressChart.php:1-61](file://app/Filament/Widgets/BatchProgressChart.php#L1-L61)
-- [BatchProgressService.php:54-63](file://app/Services/BatchProgressService.php#L54-L63)
-
-### BatchStatusChart Widget
-Purpose:
-- Display the distribution of batches across statuses using a doughnut chart.
-
-Lifecycle and behavior:
-- getData() calls BatchProgressService.statusCounts() to get counts per status.
-- Labels are derived from ProductionBatch::statusOptions() ensuring consistent ordering.
-- getType() returns 'doughnut'.
-
-```mermaid
-flowchart TD
-Start(["Render ChartWidget"]) --> GetCounts["Call BatchProgressService.statusCounts()"]
-GetCounts --> MapLabels["Map labels from ProductionBatch::statusOptions()"]
-MapLabels --> Render["Render doughnut chart"]
-```
-
-**Diagram sources**
-- [BatchStatusChart.php:1-44](file://app/Filament/Widgets/BatchStatusChart.php#L1-L44)
-- [BatchProgressService.php:68-78](file://app/Services/BatchProgressService.php#L68-L78)
-- [ProductionBatch.php:49-57](file://app/Models/ProductionBatch.php#L49-L57)
-
-**Section sources**
-- [BatchStatusChart.php:1-44](file://app/Filament/Widgets/BatchStatusChart.php#L1-L44)
-- [BatchProgressService.php:68-78](file://app/Services/BatchProgressService.php#L68-L78)
-- [ProductionBatch.php:49-57](file://app/Models/ProductionBatch.php#L49-L57)
-
-### BatchProgressTable Widget
-Purpose:
-- Provide a detailed view of running/planned batches including planned vs actual outputs, difference, and progress percentage.
-- Include filters, record actions, and real-time updates.
+- Track and visualize recent inventory movements
+- Show incoming vs outgoing transactions with color-coded indicators
+- Provide context about associated production batches and reference documents
 
 Key features:
-- Eloquent query aggregates planned_quantity and actual_output using withSum.
-- Columns include searchable/sortable fields, formatted status badges, numeric columns, and a progress bar view.
-- Filters allow selecting multiple statuses; defaults show draft and running.
-- Record actions navigate to realization detail and batch view pages.
-- Polling enabled for real-time updates.
+- Displays last 8 inventory movements ordered by occurrence time
+- Color-codes movement types (green for incoming, red for outgoing)
+- Shows formatted quantities with locale-aware number formatting
+- Includes optional batch reference column for traceability
+
+Data flow:
+- Queries InventoryMovement model with eager loading
+- Applies movement type classification and directional logic
+- Formats quantities based on movement direction (incoming/outgoing)
 
 ```mermaid
 flowchart TD
-Start(["Render TableWidget"]) --> Query["Eloquent query with withSum"]
-Query --> Columns["Define columns and state callbacks"]
-Columns --> Filters["Apply SelectFilter for status"]
-Filters --> Actions["Add record actions"]
-Actions --> Poll["Enable polling for live updates"]
-Poll --> Render["Render table"]
+Start(["Render RecentMovementsTable"]) --> Query["Query InventoryMovement with relationships"]
+Query --> Classify["Classify movement types and directions"]
+Classify --> Format["Format quantities and dates"]
+Format --> Display["Display with color-coded indicators"]
 ```
 
 **Diagram sources**
-- [BatchProgressTable.php:1-100](file://app/Filament/Widgets/BatchProgressTable.php#L1-L100)
-- [ProductionBatch.php:59-72](file://app/Models/ProductionBatch.php#L59-L72)
+- [RecentMovementsTable.php:19-77](file://app/Filament/Widgets/RecentMovementsTable.php#L19-L77)
+- [InventoryMovement.php:143-174](file://app/Models/InventoryMovement.php#L143-L174)
 
 **Section sources**
-- [BatchProgressTable.php:1-100](file://app/Filament/Widgets/BatchProgressTable.php#L1-L100)
-- [ProductionBatch.php:59-72](file://app/Models/ProductionBatch.php#L59-L72)
+- [RecentMovementsTable.php:1-79](file://app/Filament/Widgets/RecentMovementsTable.php#L1-L79)
+- [InventoryMovement.php:143-174](file://app/Models/InventoryMovement.php#L143-L174)
 
-### RecentCompletedBatchesTable Widget
+### Inventory Balance Model
 Purpose:
-- Show the most recently completed batches with planned vs actual outputs and progress percentage.
+- Represent stock levels for specific items in specific warehouses
+- Compute stock status based on quantity thresholds
+- Provide relationships to related entities
 
 Key features:
-- Eloquent query filters completed batches, orders by finish date and ID, and limits results.
-- Columns include batch code, finish date, planned/actual quantities, and formatted progress percentage.
-- Default sorting by finish date descending.
-
-```mermaid
-flowchart TD
-Start(["Render TableWidget"]) --> Query["Query completed batches with withSum"]
-Query --> Columns["Define columns and format progress"]
-Columns --> Sort["Default sort by finished_at desc"]
-Sort --> Render["Render table"]
-```
-
-**Diagram sources**
-- [RecentCompletedBatchesTable.php:1-68](file://app/Filament/Widgets/RecentCompletedBatchesTable.php#L1-L68)
-- [ProductionBatch.php:94-115](file://app/Models/ProductionBatch.php#L94-L115)
-
-**Section sources**
-- [RecentCompletedBatchesTable.php:1-68](file://app/Filament/Widgets/RecentCompletedBatchesTable.php#L1-L68)
-- [ProductionBatch.php:94-115](file://app/Models/ProductionBatch.php#L94-L115)
-
-### BatchProgressService
-Purpose:
-- Centralize batch metric computation and provide datasets for widgets.
-
-Key methods:
-- summary(): Computes running batches count, planned/actual totals, progress percentage, and completed this month.
-- runningBatches(limit): Returns top running batches with planned/actual quantities and progress percentage.
-- statusCounts(): Returns counts per status aligned with model-defined options.
-- recentCompleted(limit): Returns recently completed batches with aggregated metrics.
-- percentage(planned, actual): Calculates percentage safely handling zero planned quantity.
-
-Complexity and performance:
-- Queries leverage Eloquent withSum to minimize N+1 issues.
-- Aggregations are performed at the database level where possible.
-- Percentage calculation is O(1).
+- Decimal precision casting for accurate stock calculations
+- Computed stock_status attribute determining 'out', 'low', or 'ok' status
+- Relationships to Item and Warehouse models
+- Scope method for low stock queries
 
 ```mermaid
 classDiagram
-class BatchProgressService {
-+summary() array
-+runningBatches(limit) array
-+statusCounts() array
-+recentCompleted(limit) array
-+percentage(planned, actual) float
--runningBatchQuery() Builder
--formatBatchProgress(batch) array
+class InventoryBalance {
++warehouse_id : int
++item_id : int
++quantity_on_hand : decimal
++minimum_quantity : decimal
++last_counted_at : datetime
++stock_status() string
++scopeLowStock() Builder
+}
+class Item {
+<<model>>
+}
+class Warehouse {
+<<model>>
+}
+InventoryBalance --> Item : belongsTo
+InventoryBalance --> Warehouse : belongsTo
+```
+
+**Diagram sources**
+- [InventoryBalance.php:1-71](file://app/Models/InventoryBalance.php#L1-L71)
+
+**Section sources**
+- [InventoryBalance.php:1-71](file://app/Models/InventoryBalance.php#L1-L71)
+
+### Inventory Movement Model
+Purpose:
+- Track all inventory changes with detailed metadata
+- Classify movement types and directions
+- Provide relationships to source documents and entities
+
+Key features:
+- Multiple movement type constants (purchase, production, transfer, adjustment)
+- Directional classification methods (isIncoming, isOutgoingType)
+- Signed quantity calculation for net movement tracking
+- Relationships to Item, Warehouse, ProductionBatch, and other entities
+
+```mermaid
+classDiagram
+class InventoryMovement {
++type : string
++quantity : decimal
++occurred_at : datetime
++isIncoming() : bool
++getSignedQuantityAttribute() : float
++item() : BelongsTo
++warehouse() : BelongsTo
++productionBatch() : BelongsTo
+}
+class Item {
+<<model>>
+}
+class Warehouse {
+<<model>>
 }
 class ProductionBatch {
 <<model>>
-+items() HasMany
-+movements() HasMany
-+statusOptions() array
-+getActualOutputAttribute() float
 }
-BatchProgressService --> ProductionBatch : "queries and aggregates"
+InventoryMovement --> Item : belongsTo
+InventoryMovement --> Warehouse : belongsTo
+InventoryMovement --> ProductionBatch : belongsTo
 ```
 
 **Diagram sources**
-- [BatchProgressService.php:1-152](file://app/Services/BatchProgressService.php#L1-L152)
-- [ProductionBatch.php:1-117](file://app/Models/ProductionBatch.php#L1-L117)
+- [InventoryMovement.php:1-196](file://app/Models/InventoryMovement.php#L1-L196)
 
 **Section sources**
-- [BatchProgressService.php:1-152](file://app/Services/BatchProgressService.php#L1-L152)
-- [ProductionBatch.php:1-117](file://app/Models/ProductionBatch.php#L1-L117)
+- [InventoryMovement.php:1-196](file://app/Models/InventoryMovement.php#L1-L196)
 
-### Dashboard Page
+### Inventory Balance Resource
 Purpose:
-- Host widgets and provide header actions for navigation to reports and batch creation.
+- Provide reusable components for inventory balance displays
+- Define stock status visualization and filtering logic
+- Encapsulate business rules for stock management
 
-Behavior:
-- Sets title and subheading.
-- Configures column layout.
-- Adds header actions linking to batch realization report and create batch resource.
+Key features:
+- Reusable stock status column component with badge styling
+- Stock status filter for querying by stock condition
+- Form components for inventory management
+- Bulk operations for warehouse transfers
 
 **Section sources**
-- [Dashboard.php:1-37](file://app/Filament/Pages/Dashboard.php#L1-L37)
+- [InventoryBalanceResource.php:65-101](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L65-L101)
 
 ## Dependency Analysis
 Component relationships:
-- Widgets depend on BatchProgressService for data and on ProductionBatch for constants and relationships.
-- BatchProgressService depends on ProductionBatch for querying and aggregation.
-- Dashboard page orchestrates widget rendering and user navigation.
+- Widgets depend on inventory models for data and resource classes for reusable components
+- Inventory models define relationships and computed attributes used throughout the system
+- Dashboard page orchestrates widget rendering without direct data dependencies
 
 ```mermaid
 graph LR
-Dashboard["Dashboard.php"] --> ProductionOverview["ProductionOverview.php"]
-Dashboard --> BatchProgressChart["BatchProgressChart.php"]
-Dashboard --> BatchStatusChart["BatchStatusChart.php"]
-Dashboard --> BatchProgressTable["BatchProgressTable.php"]
-Dashboard --> RecentCompletedBatchesTable["RecentCompletedBatchesTable.php"]
-ProductionOverview --> BatchProgressService["BatchProgressService.php"]
-BatchProgressChart --> BatchProgressService
-BatchStatusChart --> BatchProgressService
-BatchProgressTable --> ProductionBatch["ProductionBatch.php"]
-RecentCompletedBatchesTable --> ProductionBatch
-BatchProgressService --> ProductionBatch
+Dashboard["Dashboard.php"] --> OutOfStockItemsTable["OutOfStockItemsTable.php"]
+Dashboard --> RecentMovementsTable["RecentMovementsTable.php"]
+OutOfStockItemsTable --> InventoryBalance["InventoryBalance.php"]
+OutOfStockItemsTable --> InventoryBalanceResource["InventoryBalanceResource.php"]
+RecentMovementsTable --> InventoryMovement["InventoryMovement.php"]
+InventoryBalance --> Item["Item.php"]
+InventoryBalance --> Warehouse["Warehouse.php"]
+InventoryMovement --> Item
+InventoryMovement --> Warehouse
+InventoryMovement --> ProductionBatch["ProductionBatch.php"]
 ```
 
 **Diagram sources**
-- [Dashboard.php:1-37](file://app/Filament/Pages/Dashboard.php#L1-L37)
-- [ProductionOverview.php:1-40](file://app/Filament/Widgets/ProductionOverview.php#L1-L40)
-- [BatchProgressChart.php:1-61](file://app/Filament/Widgets/BatchProgressChart.php#L1-L61)
-- [BatchStatusChart.php:1-44](file://app/Filament/Widgets/BatchStatusChart.php#L1-L44)
-- [BatchProgressTable.php:1-100](file://app/Filament/Widgets/BatchProgressTable.php#L1-L100)
-- [RecentCompletedBatchesTable.php:1-68](file://app/Filament/Widgets/RecentCompletedBatchesTable.php#L1-L68)
-- [BatchProgressService.php:1-152](file://app/Services/BatchProgressService.php#L1-L152)
-- [ProductionBatch.php:1-117](file://app/Models/ProductionBatch.php#L1-L117)
+- [Dashboard.php:1-16](file://app/Filament/Pages/Dashboard.php#L1-L16)
+- [OutOfStockItemsTable.php:1-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L1-L64)
+- [RecentMovementsTable.php:1-79](file://app/Filament/Widgets/RecentMovementsTable.php#L1-L79)
+- [InventoryBalance.php:1-71](file://app/Models/InventoryBalance.php#L1-L71)
+- [InventoryMovement.php:1-196](file://app/Models/InventoryMovement.php#L1-L196)
+- [InventoryBalanceResource.php:1-445](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L1-L445)
 
 **Section sources**
-- [Dashboard.php:1-37](file://app/Filament/Pages/Dashboard.php#L1-L37)
-- [BatchProgressService.php:1-152](file://app/Services/BatchProgressService.php#L1-L152)
+- [Dashboard.php:1-16](file://app/Filament/Pages/Dashboard.php#L1-L16)
 
 ## Performance Considerations
-- Use withSum to aggregate related data efficiently and avoid N+1 queries in tables and services.
-- Limit result sets (e.g., limit(8)) for charts and tables to reduce payload size.
-- Enable polling only where necessary (e.g., stats overview and progress table) to balance freshness and load.
-- Prefer server-side filtering and sorting in tables to minimize client processing.
-- Cache expensive computations if needed (e.g., cache summary or status counts) using Laravel’s cache layer when traffic increases.
-
-[No sources needed since this section provides general guidance]
+- Use eager loading (`with`) to prevent N+1 queries when displaying related data
+- Limit result sets to reduce payload size (e.g., limit(8) for dashboard widgets)
+- Disable pagination for focused dashboard views to avoid unnecessary overhead
+- Leverage database-level filtering and sorting where possible
+- Use computed attributes sparingly as they execute on every record access
+- Consider caching frequently accessed inventory data if performance becomes an issue
 
 ## Troubleshooting Guide
 Common issues and resolutions:
-- Missing or incorrect status labels: Ensure ProductionBatch::statusOptions() matches expected keys and values.
-- Zero planned quantity causing division issues: BatchProgressService.percentage handles zero planned quantity by returning 0%.
-- Stale data in charts/tables: Verify polling intervals and ensure backend updates are reflected; check database constraints and movement types.
-- Localization formatting problems: Confirm app()->getLocale() is set correctly and Number::format is used consistently.
+- **Missing stock status**: Ensure InventoryBalance::stock_status computed attribute is properly defined and returns correct values ('out', 'low', 'ok').
+- **Incorrect movement classification**: Verify InventoryMovement::incomingTypes() and outgoingTypes() arrays match expected movement types.
+- **Locale formatting issues**: Confirm app()->getLocale() is set correctly and Number::format is used consistently for quantity display.
+- **Relationship loading problems**: Check that eager loading is properly configured in widget queries to avoid N+1 query issues.
 
 **Section sources**
-- [BatchProgressService.php:110-117](file://app/Services/BatchProgressService.php#L110-L117)
-- [ProductionBatch.php:49-57](file://app/Models/ProductionBatch.php#L49-L57)
+- [InventoryBalance.php:47-64](file://app/Models/InventoryBalance.php#L47-L64)
+- [InventoryMovement.php:143-174](file://app/Models/InventoryMovement.php#L143-L174)
 
 ## Conclusion
-The dashboard widgets provide a cohesive view of production batch progress through stats, charts, and tables. The architecture separates concerns between presentation (widgets), business logic (service), and domain data (models). With careful use of Eloquent aggregations, controlled polling, and clear service contracts, the system remains maintainable and performant. Extending the dashboard with additional widgets or external data sources can follow the established patterns demonstrated here.
-
-[No sources needed since this section summarizes without analyzing specific files]
+The dashboard widgets provide comprehensive inventory management capabilities through focused table displays. The architecture separates concerns between presentation (widgets), domain data (models), and reusable components (resources). With careful use of eager loading, computed attributes, and clear model relationships, the system remains maintainable and performant while providing essential inventory visibility and control.
 
 ## Appendices
 
 ### Widget Lifecycle Methods Reference
-- StatsOverviewWidget:
-  - getStats(): Provides stat definitions and values.
-  - $pollingInterval: Controls automatic refresh frequency.
-- ChartWidget:
-  - getData(): Returns Chart.js-compatible data arrays.
-  - getType(): Specifies chart type (e.g., 'bar', 'doughnut').
-  - getOptions(): Configures Chart.js options like axes and legends.
 - TableWidget:
-  - table(Table $table): Defines query, columns, filters, actions, sorting, and polling.
+  - table(Table $table): Defines query, columns, filters, actions, sorting, and pagination settings.
+  - $sort: Controls widget ordering within the dashboard layout.
+  - $columnSpan: Determines horizontal space allocation in grid layouts.
 
 **Section sources**
-- [ProductionOverview.php:1-40](file://app/Filament/Widgets/ProductionOverview.php#L1-L40)
-- [BatchProgressChart.php:1-61](file://app/Filament/Widgets/BatchProgressChart.php#L1-L61)
-- [BatchStatusChart.php:1-44](file://app/Filament/Widgets/BatchStatusChart.php#L1-L44)
-- [BatchProgressTable.php:1-100](file://app/Filament/Widgets/BatchProgressTable.php#L1-L100)
+- [OutOfStockItemsTable.php:13-17](file://app/Filament/Widgets/OutOfStockItemsTable.php#L13-L17)
+- [RecentMovementsTable.php:13-17](file://app/Filament/Widgets/RecentMovementsTable.php#L13-L17)
 
-### Creating Custom Widgets
+### Creating Custom Inventory Widgets
 Steps:
-- Extend appropriate Filament widget base class (StatsOverviewWidget, ChartWidget, TableWidget).
-- Implement required methods (getStats, getData/getType/getOptions, table).
-- Inject or resolve BatchProgressService for data access.
-- Configure layout properties ($columnSpan, $sort) and interactive behaviors (polling, filters, actions).
+- Extend Filament's TableWidget base class for inventory-related displays.
+- Implement the table() method to define queries, columns, and interactions.
+- Use inventory models (InventoryBalance, InventoryMovement) for data access.
+- Leverage resource classes for reusable components like stock status columns.
+- Configure layout properties ($sort, $columnSpan) and interactive behaviors.
 
 Example references:
-- Stats overview pattern: [ProductionOverview.php:1-40](file://app/Filament/Widgets/ProductionOverview.php#L1-L40)
-- Bar chart pattern: [BatchProgressChart.php:1-61](file://app/Filament/Widgets/BatchProgressChart.php#L1-L61)
-- Doughnut chart pattern: [BatchStatusChart.php:1-44](file://app/Filament/Widgets/BatchStatusChart.php#L1-L44)
-- Table pattern: [BatchProgressTable.php:1-100](file://app/Filament/Widgets/BatchProgressTable.php#L1-L100)
+- Out-of-stock monitoring pattern: [OutOfStockItemsTable.php:1-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L1-L64)
+- Movement tracking pattern: [RecentMovementsTable.php:1-79](file://app/Filament/Widgets/RecentMovementsTable.php#L1-L79)
+- Stock status component usage: [InventoryBalanceResource.php:65-80](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L65-L80)
 
 **Section sources**
-- [ProductionOverview.php:1-40](file://app/Filament/Widgets/ProductionOverview.php#L1-L40)
-- [BatchProgressChart.php:1-61](file://app/Filament/Widgets/BatchProgressChart.php#L1-L61)
-- [BatchStatusChart.php:1-44](file://app/Filament/Widgets/BatchStatusChart.php#L1-L44)
-- [BatchProgressTable.php:1-100](file://app/Filament/Widgets/BatchProgressTable.php#L1-L100)
+- [OutOfStockItemsTable.php:1-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L1-L64)
+- [RecentMovementsTable.php:1-79](file://app/Filament/Widgets/RecentMovementsTable.php#L1-L79)
+- [InventoryBalanceResource.php:65-80](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L65-L80)
 
 ### Integrating External Data Sources
 Approach:
-- Create a new service method to fetch and normalize external data.
-- Merge external metrics with internal batch metrics in BatchProgressService.
-- Expose new datasets via getData() in relevant widgets or add new widgets.
+- Create service classes to fetch and normalize external inventory data.
+- Map external data to internal inventory models and relationships.
+- Expose new datasets via custom widgets or extend existing ones.
 - Apply caching at the service layer to mitigate external API latency.
 
 Guidance:
 - Keep external integrations isolated in services to preserve widget simplicity.
-- Validate and sanitize external payloads before rendering.
+- Validate and sanitize external payloads before processing.
 - Handle errors gracefully and fallback to cached or default values.
-
-[No sources needed since this section provides general guidance]
+- Maintain data consistency through proper transaction handling.

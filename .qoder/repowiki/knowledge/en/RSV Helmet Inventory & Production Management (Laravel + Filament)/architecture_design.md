@@ -1,0 +1,11 @@
+Standard Laravel 13 project layout with the following internal layers:
+- `app/Filament/` — Filament v5 admin panel: resources under `Resources/<Entity>/` each owning a `<Entity>Resource.php`, a `Pages/` subdirectory with Create/Edit/List pages, and optional `RelationManagers/`. Custom pages live in `Filament/Pages/` (Dashboard, BomBuilder, Warehouse*, StockCard, BatchRealization*, DaftarBarangEksternal). Imports/Exports are paired classes per domain entity (`ItemImporter`/`ItemExporter`, etc.).
+- `app/Models/` — Eloquent models for all domain entities (Items, Warehouses, InventoryBalance/Movement, ProductionBatch/*, StockOpname/*, ItemRequest/*, ExternalItemMapping/SyncedBarang).
+- `app/Services/` — Domain logic extracted from controllers/resources into single-responsibility services (`BomExplosionService`, `BatchRequirementService`, `BatchProgressService`, `StockMovementService`, `StockOpnameService`, `ExternalBarangApiService`, `ExternalBarangSyncService`, `ItemRequestService`).
+- `app/Livewire/` — Public-facing Livewire component (`ItemRequestForm`) plus Blade views under `resources/views/livewire/`.
+- `app/Http/Controllers/` — Thin controller layer; only `ItemRequestPdfController` renders PDFs via barryvdh/laravel-dompdf.
+- `app/Console/Commands/` — CLI entry point (`SyncExternalBarangCommand`) orchestrating the external barang sync service.
+- `app/Providers/Filament/AdminPanelProvider.php` — central panel registration (navigation groups: Gudang, Permintaan Barang, Produksi, Integrasi Eksternal, Data Master) with auto-discovery of Resources/Pages/Widgets.
+- `routes/web.php` exposes only two public routes (Livewire form + signed PDF); everything else is served by Filament at `/admin`.
+- Database schema is versioned via numbered migrations in `database/migrations/`; factories and seeders mirror model coverage.
+- Dockerized with MariaDB 11 (`docker-compose.yml`), Nginx + PHP-FPM in production (`Dockerfile.prod`, `docker/production/`), behind Cloudflare Tunnel (proxy trust configured in `bootstrap/app.php`).
