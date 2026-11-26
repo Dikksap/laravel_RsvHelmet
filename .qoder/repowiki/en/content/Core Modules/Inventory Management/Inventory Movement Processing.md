@@ -4,12 +4,14 @@
 **Referenced Files in This Document**   
 - [InventoryMovement.php](file://app/Models/InventoryMovement.php)
 - [StockMovementService.php](file://app/Services/StockMovementService.php)
-- [InventoryBalanceResource.php](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php)
+- [Vendor.php](file://app/Models/Vendor.php)
 - [InventoryMovementResource.php](file://app/Filament/Resources/InventoryMovements/InventoryMovementResource.php)
+- [InventoryBalanceResource.php](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php)
 - [StockCard.php](file://app/Filament/Pages/StockCard.php)
 - [ListInventoryMovements.php](file://app/Filament/Resources/InventoryMovements/Pages/ListInventoryMovements.php)
 - [StockMovementTest.php](file://tests/Feature/StockMovementTest.php)
 - [MassStockTransferTest.php](file://tests/Feature/MassStockTransferTest.php)
+- [2026_11_26_000003_add_vendor_id_to_inventory_movements_table.php](file://database/migrations/2026_11_26_000003_add_vendor_id_to_inventory_movements_table.php)
 </cite>
 
 ## Update Summary
@@ -19,6 +21,8 @@
 - Improved filtering capabilities for inventory movements and stock cards
 - Added component consumption preview and material shortage validation
 - Enhanced external production output integration with batch and variant selection
+- **Added vendor tracking for purchase transactions with foreign key relationship and restrictive delete behavior**
+- **Implemented conditional form visibility for incoming purchase types with vendor field**
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -26,24 +30,25 @@
 3. [Core Components](#core-components)
 4. [Architecture Overview](#architecture-overview)
 5. [Detailed Component Analysis](#detailed-component-analysis)
-6. [Production Batch Integration](#production-batch-integration)
-7. [Bulk Transfer Operations](#bulk-transfer-operations)
-8. [Enhanced Filtering Capabilities](#enhanced-filtering-capabilities)
-9. [Dependency Analysis](#dependency-analysis)
-10. [Performance Considerations](#performance-considerations)
-11. [Troubleshooting Guide](#troubleshooting-guide)
-12. [Conclusion](#conclusion)
+6. [Vendor Tracking Integration](#vendor-tracking-integration)
+7. [Production Batch Integration](#production-batch-integration)
+8. [Bulk Transfer Operations](#bulk-transfer-operations)
+9. [Enhanced Filtering Capabilities](#enhanced-filtering-capabilities)
+10. [Dependency Analysis](#dependency-analysis)
+11. [Performance Considerations](#performance-considerations)
+12. [Troubleshooting Guide](#troubleshooting-guide)
+13. [Conclusion](#conclusion)
 
 ## Introduction
-This document explains how inventory movement processing works in the system. It focuses on the `InventoryMovement` model, which records every stock transaction, and the `StockMovementService`, which validates, creates, and processes movements such as purchases, production output, material consumption, warehouse transfers, adjustments, and deletions. The system now features enhanced production batch integration with automatic material consumption, comprehensive bulk transfer operations, and improved filtering capabilities for better user experience and operational efficiency.
+This document explains how inventory movement processing works in the system. It focuses on the `InventoryMovement` model, which records every stock transaction, and the `StockMovementService`, which validates, creates, and processes movements such as purchases, production output, material consumption, warehouse transfers, adjustments, and deletions. The system now features enhanced production batch integration with automatic material consumption, comprehensive bulk transfer operations, improved filtering capabilities, and vendor tracking for purchase transactions to provide complete supply chain traceability.
 
 ## Project Structure
 The inventory movement domain is implemented across:
-- A core Eloquent model for movement records with enhanced relationships.
+- A core Eloquent model for movement records with enhanced relationships including vendor tracking.
 - A service layer that encapsulates business rules, balance updates, and complex workflows.
-- Database migrations defining the movement schema and relationships.
-- Filament resources providing user-facing forms, tables, filters, and bulk actions.
-- Feature tests validating movement behavior, transfers, production consumption, and UI flows.
+- Database migrations defining the movement schema and vendor relationships with restrictive delete behavior.
+- Filament resources providing user-facing forms, tables, filters, and conditional field visibility.
+- Feature tests validating movement behavior, vendor tracking, transfers, production consumption, and UI flows.
 
 ```mermaid
 graph TB
@@ -52,6 +57,7 @@ Service --> Movement["InventoryMovement Model"]
 Service --> Balance["InventoryBalance Model"]
 Movement --> Item["Item"]
 Movement --> Warehouse["Warehouse"]
+Movement --> Vendor["Vendor"]
 Movement --> Batch["ProductionBatch"]
 Movement --> Request["ItemRequest"]
 Movement --> Opname["StockOpname"]
@@ -65,32 +71,35 @@ ExternalAPI["External API Integration"] --> Service
 - [StockMovementService.php:16-17](file://app/Services/StockMovementService.php#L16-L17)
 
 **Section sources**
-- [InventoryMovement.php:1-196](file://app/Models/InventoryMovement.php#L1-L196)
-- [StockMovementService.php:1-400](file://app/Services/StockMovementService.php#L1-L400)
-- [InventoryMovementResource.php:1-591](file://app/Filament/Resources/InventoryMovements/InventoryMovementResource.php#L1-L591)
+- [InventoryMovement.php:1-202](file://app/Models/InventoryMovement.php#L1-L202)
+- [StockMovementService.php:1-401](file://app/Services/StockMovementService.php#L1-L401)
+- [InventoryMovementResource.php:1-602](file://app/Filament/Resources/InventoryMovements/InventoryMovementResource.php#L1-L602)
 - [InventoryBalanceResource.php:1-445](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L1-L445)
 
 ## Core Components
-- `InventoryMovement`: Represents a single stock change with type, item, warehouse, quantity, timestamps, references, and optional links to production batches, stock opnames, item requests, parent movements, and transfer groups.
+- `InventoryMovement`: Represents a single stock change with type, item, warehouse, quantity, timestamps, references, optional links to production batches, stock opnames, item requests, parent movements, transfer groups, and vendors for purchase tracking.
 - `StockMovementService`: Encapsulates validation, creation, transfer logic, production output handling, batch operations, reversal, and safe deletion.
 - `InventoryBalance`: Tracks current stock per item and warehouse; updated atomically by the service.
 - `ProductionBatch`: Provides batch context for production output and material warehouse selection.
 - `ItemRequest`: Links movements to approved or processed item requests.
+- `Vendor`: Represents suppliers for purchase transactions with active/inactive status management.
 
 Key responsibilities:
-- Record incoming and outgoing movements safely.
+- Record incoming and outgoing movements safely with vendor attribution for purchases.
 - Enforce positive quantities and non-negative balances.
 - Create paired transfer movements with grouping.
 - Automatically consume materials based on active item components when recording production output.
 - Support deletion with full reversal and group-aware cleanup.
 - Handle bulk operations across multiple items and warehouses.
+- Track purchase transactions with vendor information and restrict inactive vendor selection.
 
 **Section sources**
 - [InventoryMovement.php:13-100](file://app/Models/InventoryMovement.php#L13-L100)
 - [StockMovementService.php:16-60](file://app/Services/StockMovementService.php#L16-L60)
+- [Vendor.php:11-31](file://app/Models/Vendor.php#L11-L31)
 
 ## Architecture Overview
-The movement lifecycle flows through the Filament resource into the service, which persists an `InventoryMovement` and updates `InventoryBalance`. Production output may create additional child movements for material consumption. Transfers create paired out/in movements grouped by UUID. Bulk transfers handle multiple items efficiently. Deletion reverses deltas and removes related movements.
+The movement lifecycle flows through the Filament resource into the service, which persists an `InventoryMovement` and updates `InventoryBalance`. Purchase transactions include vendor attribution, while production output may create additional child movements for material consumption. Transfers create paired out/in movements grouped by UUID. Bulk transfers handle multiple items efficiently. Deletion reverses deltas and removes related movements.
 
 ```mermaid
 sequenceDiagram
@@ -101,10 +110,11 @@ participant Service as "StockMovementService"
 participant DB as "Database"
 participant Balance as "InventoryBalance"
 participant Movement as "InventoryMovement"
+participant Vendor as "Vendor"
 User->>Resource : Submit movement form
 Resource->>Service : record(attributes)
 Service->>DB : Start transaction
-Service->>Movement : Create movement
+Service->>Movement : Create movement with vendor (if purchase)
 Service->>Balance : Apply delta (incoming/outgoing)
 Balance-->>Service : Updated balance
 Service-->>Resource : Movement instance
@@ -122,7 +132,7 @@ Service-->>BulkAction : Results summary
 ## Detailed Component Analysis
 
 ### InventoryMovement Model
-The model defines movement types, direction helpers, labels, and relationships.
+The model defines movement types, direction helpers, labels, and relationships including vendor tracking.
 
 - Movement types:
   - Incoming: purchase, production output, transfer-in, adjustment-in.
@@ -133,7 +143,7 @@ The model defines movement types, direction helpers, labels, and relationships.
 - Signed quantity:
   - `getSignedQuantityAttribute()` returns negative values for outgoing movements.
 - Relationships:
-  - Belongs to item, warehouse, production batch, stock opname, item request, creator user.
+  - Belongs to item, warehouse, production batch, stock opname, item request, creator user, and vendor.
   - Parent-child relationship via `parent_movement_id` for automatic material consumption lines.
   - Transfer grouping via `transfer_group_id`.
 
@@ -147,6 +157,7 @@ class InventoryMovement {
 +int production_batch_id
 +int stock_opname_id
 +int item_request_id
++int vendor_id
 +string transfer_group_id
 +int parent_movement_id
 +datetime occurred_at
@@ -165,23 +176,25 @@ class Warehouse
 class ProductionBatch
 class StockOpname
 class ItemRequest
+class Vendor
 class User
 InventoryMovement --> Item : "belongsTo"
 InventoryMovement --> Warehouse : "belongsTo"
 InventoryMovement --> ProductionBatch : "belongsTo"
 InventoryMovement --> StockOpname : "belongsTo"
 InventoryMovement --> ItemRequest : "belongsTo"
+InventoryMovement --> Vendor : "belongsTo"
 InventoryMovement --> User : "creator"
 InventoryMovement --> InventoryMovement : "parentMovement / childMovements"
 ```
 
 **Diagram sources**
 - [InventoryMovement.php:28-100](file://app/Models/InventoryMovement.php#L28-L100)
-- [InventoryMovement.php:105-195](file://app/Models/InventoryMovement.php#L105-L195)
+- [InventoryMovement.php:105-201](file://app/Models/InventoryMovement.php#L105-L201)
 
 **Section sources**
 - [InventoryMovement.php:33-50](file://app/Models/InventoryMovement.php#L33-L50)
-- [InventoryMovement.php:105-195](file://app/Models/InventoryMovement.php#L105-L195)
+- [InventoryMovement.php:105-201](file://app/Models/InventoryMovement.php#L105-L201)
 
 ### StockMovementService Methods
 
@@ -190,6 +203,7 @@ InventoryMovement --> InventoryMovement : "parentMovement / childMovements"
 - Persists movement within a database transaction.
 - Applies signed delta to `InventoryBalance`.
 - Defaults timestamp and creator when not provided.
+- Supports vendor attribution for purchase transactions.
 
 Validation rules:
 - Quantity must be greater than zero.
@@ -274,6 +288,75 @@ ReverseGroup --> End(["Done"])
 
 **Section sources**
 - [StockMovementService.php:296-344](file://app/Services/StockMovementService.php#L296-L344)
+
+## Vendor Tracking Integration
+
+### Vendor Relationship and Foreign Key Constraints
+The system now includes comprehensive vendor tracking for purchase transactions:
+
+- **Foreign Key Relationship**: `vendor_id` column added to `inventory_movements` table with restrictive delete behavior.
+- **Model Relationship**: `InventoryMovement` has a `belongsTo(Vendor::class)` relationship.
+- **Vendor Model**: Includes `hasMany(InventoryMovement::class)` relationship for bidirectional access.
+- **Restrictive Delete Behavior**: Prevents deletion of vendors that have associated purchase transactions.
+
+Database schema changes:
+- Added `vendor_id` nullable foreign key column after `item_request_id`.
+- Configured `restrictOnDelete()` to prevent vendor deletion when linked to movements.
+- Maintains referential integrity while allowing null values for non-purchase transactions.
+
+```mermaid
+erDiagram
+INVENTORY_MOVEMENTS ||--o{ VENDORS : belongs_to
+VENDORS ||--o{ INVENTORY_MOVEMENTS : has_many
+INVENTORY_MOVEMENTS {
+int id PK
+int vendor_id FK
+string type
+decimal quantity
+}
+VENDORS {
+int id PK
+string code
+string name
+boolean is_active
+}
+```
+
+**Diagram sources**
+- [2026_11_26_000003_add_vendor_id_to_inventory_movements_table.php:11-17](file://database/migrations/2026_11_26_000003_add_vendor_id_to_inventory_movements_table.php#L11-L17)
+- [InventoryMovement.php:88-91](file://app/Models/InventoryMovement.php#L88-L91)
+- [Vendor.php:27-31](file://app/Models/Vendor.php#L27-L31)
+
+### Conditional Form Visibility
+The Filament interface provides conditional vendor field visibility:
+
+- **Purchase Type Only**: Vendor field is only visible when transaction type is `TYPE_IN_PURCHASE`.
+- **Active Vendors Only**: Form queries only active vendors (`where('is_active', true)`).
+- **Searchable Interface**: Vendor field supports search by code and name with preload functionality.
+- **Helper Text**: Provides guidance about supplier selection for purchase transactions.
+
+Form behavior:
+- Vendor field automatically hides when changing from purchase to other transaction types.
+- Inactive vendors are filtered out from form selection but remain filterable in lists.
+- Changing transaction type clears hidden vendor field to prevent data leakage.
+
+**Section sources**
+- [InventoryMovementResource.php:95-106](file://app/Filament/Resources/InventoryMovements/InventoryMovementResource.php#L95-L106)
+- [StockMovementTest.php:230-250](file://tests/Feature/StockMovementTest.php#L230-L250)
+- [StockMovementTest.php:252-277](file://tests/Feature/StockMovementTest.php#L252-L277)
+
+### Vendor Filtering and Display
+The system supports comprehensive vendor-based operations:
+
+- **Table Column**: Vendor name displayed in movement list with placeholder for non-purchase transactions.
+- **Filter Support**: Movements can be filtered by vendor, including inactive vendors.
+- **Bidirectional Access**: Easy navigation from vendor to their purchase movements and vice versa.
+- **Code Display**: Vendor codes displayed alongside names in form selections for better identification.
+
+**Section sources**
+- [InventoryMovementResource.php:345-349](file://app/Filament/Resources/InventoryMovements/InventoryMovementResource.php#L345-L349)
+- [InventoryMovementResource.php:380-384](file://app/Filament/Resources/InventoryMovements/InventoryMovementResource.php#L380-L384)
+- [StockMovementTest.php:279-290](file://tests/Feature/StockMovementTest.php#L279-L290)
 
 ## Production Batch Integration
 
@@ -401,6 +484,7 @@ The inventory movements list includes comprehensive filtering options:
 - Type filter for movement categories.
 - Warehouse filter for location-based queries.
 - Item filter for product-specific searches.
+- **Vendor filter for supplier-based tracking**.
 - Production batch filter for batch-specific tracking.
 - Searchable and preloaded dropdowns for performance.
 
@@ -417,6 +501,7 @@ graph LR
 Filter["Filters"] --> Type["Movement Type"]
 Filter --> Warehouse["Warehouse"]
 Filter --> Item["Item"]
+Filter --> Vendor["Vendor"]
 Filter --> Batch["Production Batch"]
 Filter --> Status["Stock Status"]
 ```
@@ -432,7 +517,7 @@ Filter --> Status["Stock Status"]
 - [InventoryBalanceResource.php:82-101](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L82-L101)
 
 ## Dependency Analysis
-The service depends on models and uses transactions to ensure consistency. The resource depends on the service for persistence and validation. Tests validate both programmatic and UI-driven flows. The bulk transfer system integrates with the Filament framework for user interaction.
+The service depends on models and uses transactions to ensure consistency. The resource depends on the service for persistence and validation. Tests validate both programmatic and UI-driven flows. The bulk transfer system integrates with the Filament framework for user interaction. Vendor tracking adds another dependency layer for purchase transaction management.
 
 ```mermaid
 graph LR
@@ -442,6 +527,7 @@ Service --> Movement["InventoryMovement"]
 Service --> Balance["InventoryBalance"]
 Movement --> Item["Item"]
 Movement --> Warehouse["Warehouse"]
+Movement --> Vendor["Vendor"]
 Movement --> Batch["ProductionBatch"]
 Movement --> Request["ItemRequest"]
 Tests["StockMovementTest / MassStockTransferTest"] --> Service
@@ -466,12 +552,14 @@ Tests --> BulkResource
 - Precision: Quantities are stored with three decimal places to avoid rounding issues in production calculations.
 - Bulk Operations: Bulk transfers process items efficiently by grouping by origin warehouse and using single transactions.
 - Query Optimization: Filters use eager loading and indexed relationships for optimal performance.
+- **Vendor Queries**: Active vendor filtering reduces query overhead in forms while maintaining full vendor access in reports.
 
 Recommendations:
 - Keep movement queries scoped by item, warehouse, and date ranges for optimal performance.
 - Use batched operations where possible to reduce round trips.
 - Monitor lock contention under high concurrency and consider queueing heavy background jobs if needed.
 - Leverage the bulk transfer system for large-scale warehouse reorganizations.
+- Utilize vendor filtering for supply chain analysis and reporting.
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -496,6 +584,12 @@ Common issues and resolutions:
 - Bulk transfer destination conflicts:
   - Cause: Destination warehouse matches an origin warehouse.
   - Resolution: Select a different destination warehouse.
+- **Inactive vendor selection**:
+  - Cause: Attempting to select inactive vendor for purchase transaction.
+  - Resolution: Select an active vendor or activate the vendor first.
+- **Vendor deletion prevention**:
+  - Cause: Trying to delete vendor with associated purchase transactions.
+  - Resolution: Remove or reassign purchase transactions before deleting vendor.
 
 Evidence from tests:
 - Outgoing movement rejection when stock is insufficient.
@@ -503,6 +597,9 @@ Evidence from tests:
 - Mass transfer rolls back entirely when any item is short.
 - Production output validation prevents material shortages.
 - Bulk transfer validation ensures destination warehouse uniqueness.
+- **Inactive vendor cannot be selected for new purchase transactions**.
+- **Changing transaction type does not save hidden vendor field**.
+- **Transactions can be filtered by vendor even when inactive**.
 
 **Section sources**
 - [StockMovementService.php:321-344](file://app/Services/StockMovementService.php#L321-L344)
@@ -510,6 +607,9 @@ Evidence from tests:
 - [StockMovementTest.php:70-84](file://tests/Feature/StockMovementTest.php#L70-L84)
 - [StockMovementTest.php:750-778](file://tests/Feature/StockMovementTest.php#L750-L778)
 - [MassStockTransferTest.php:64-99](file://tests/Feature/MassStockTransferTest.php#L64-L99)
+- [StockMovementTest.php:230-250](file://tests/Feature/StockMovementTest.php#L230-L250)
+- [StockMovementTest.php:252-277](file://tests/Feature/StockMovementTest.php#L252-L277)
+- [StockMovementTest.php:279-290](file://tests/Feature/StockMovementTest.php#L279-L290)
 
 ## Conclusion
-The inventory movement system centers on a robust `InventoryMovement` model and a comprehensive `StockMovementService`. Recent enhancements include sophisticated production batch integration with automatic material consumption and external API support, comprehensive bulk transfer operations for efficient multi-item warehouse management, and improved filtering capabilities for better data exploration. The system enforces strict validation, supports complex workflows like production output with automatic material consumption, and ensures data integrity through transactions and locking. The Filament integration offers intuitive forms, tables, and bulk actions, while feature tests confirm correctness across single and batch operations. With clear audit fields, indexed queries, and enhanced user interfaces, the system provides reliable tracking, reporting, and operational capabilities for all stock transactions.
+The inventory movement system centers on a robust `InventoryMovement` model and a comprehensive `StockMovementService`. Recent enhancements include sophisticated production batch integration with automatic material consumption and external API support, comprehensive bulk transfer operations for efficient multi-item warehouse management, improved filtering capabilities for better data exploration, and comprehensive vendor tracking for purchase transactions. The vendor tracking feature provides complete supply chain traceability with foreign key relationships, restrictive delete behavior, and conditional form visibility. The system enforces strict validation, supports complex workflows like production output with automatic material consumption, and ensures data integrity through transactions and locking. The Filament integration offers intuitive forms, tables, and bulk actions, while feature tests confirm correctness across single and batch operations. With clear audit fields, indexed queries, enhanced user interfaces, and vendor attribution capabilities, the system provides reliable tracking, reporting, and operational capabilities for all stock transactions.

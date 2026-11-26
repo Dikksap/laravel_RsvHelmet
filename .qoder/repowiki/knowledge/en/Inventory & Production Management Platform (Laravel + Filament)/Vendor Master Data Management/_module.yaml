@@ -1,0 +1,13 @@
+schema_version: 1
+module_path: vendors
+title: Vendor Master Data Management
+scope:
+    - app/Filament/Resources/Vendors/
+    - app/Models/Vendor.php
+    - database/factories/VendorFactory.php
+    - database/migrations/2026_11_26_000002_create_vendors_table.php
+    - database/migrations/2026_11_26_000003_add_vendor_id_to_inventory_movements_table.php
+    - tests/Feature/VendorResourceTest.php
+source_files: []
+depends_on: []
+related_to: []

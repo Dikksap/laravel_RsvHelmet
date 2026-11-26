@@ -1,1 +1,0 @@
-Laravel 13 + PHP 8.3, Filament v5 admin panel, Livewire, barryvdh/laravel-dompdf for PDF generation, mariadb:11 as the database, filament-infinite-scroll and mrpunyapal/filament-infinite-select for large select lists, laravel/boost for dev tooling.

@@ -1,0 +1,1 @@
+Filament resource and Eloquent model for managing vendor master records, including CRUD pages, form/table definitions, and the vendors table schema with an inventory movements relationship.

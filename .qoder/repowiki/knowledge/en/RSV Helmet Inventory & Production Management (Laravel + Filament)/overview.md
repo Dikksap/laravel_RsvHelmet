@@ -1,1 +1,0 @@
-Laravel-based warehouse, inventory, production-batch, and item-request management application with a Filament admin panel, Livewire forms, PDF generation, and external barang synchronization.

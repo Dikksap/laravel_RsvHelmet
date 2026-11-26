@@ -17,10 +17,10 @@
 
 ## Update Summary
 **Changes Made**
-- Added new section on Cloudflare Tunnel and HTTPS Proxy Configuration
-- Updated Nginx configuration section to include reverse proxy considerations
-- Enhanced security hardening checklist with proxy-specific recommendations
-- Added troubleshooting guidance for mixed content issues with HTTPS proxies
+- Enhanced Docker production entrypoint with robust storage symlink creation and dangling link detection
+- Updated entrypoint initialization section to reflect improved file system setup procedures
+- Added detailed explanation of force mode usage for storage symlink recreation
+- Enhanced troubleshooting guidance for storage-related issues with new symlink validation logic
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -49,7 +49,7 @@ The repository provides:
 - A GitHub Actions workflow for testing, building, pushing images to GitHub Container Registry, and optional SSH-based deployment.
 - A server-side deployment helper script.
 - Production configurations for Nginx, PHP, and Supervisor.
-- An entrypoint script that prepares storage, permissions, migrations, caching, and starts Supervisor.
+- An enhanced entrypoint script that prepares storage, permissions, migrations, caching, and starts Supervisor with robust symlink management.
 - Application bootstrap configuration with HTTPS proxy support for Cloudflare Tunnel deployments.
 
 ```mermaid
@@ -80,7 +80,7 @@ App --> Logs["Application Logs Volume"]
 - CI/CD pipeline: Tests, code style checks, image build/push to GHCR, and optional SSH deploy.
 - Server deployment script: Pulls latest image, starts containers, caches config/routes/views, and links storage.
 - Runtime configuration: Nginx routing, static asset caching, security headers; PHP memory, upload limits, timezone, Opcache; Supervisor managing Nginx, PHP-FPM, and queue worker.
-- Entrypoint initialization: Creates directories, fixes permissions, ensures storage symlink, waits for DB, runs migrations if enabled, caches Laravel artifacts, then starts Supervisor.
+- **Enhanced** Entrypoint initialization: Creates directories, fixes permissions, ensures storage symlink with robust dangling link detection and force mode, waits for DB, runs migrations if enabled, caches Laravel artifacts, then starts Supervisor.
 - **Updated** HTTPS proxy configuration: Trust proxy middleware enabling proper HTTPS detection when deployed behind Cloudflare Tunnel or similar reverse proxies.
 
 **Section sources**
@@ -314,11 +314,11 @@ Supervisor --> QueueWorker : "manages"
 - [docker/production/php.ini:1-18](file://docker/production/php.ini#L1-L18)
 - [docker/production/supervisord.conf:1-36](file://docker/production/supervisord.conf#L1-L36)
 
-### Entrypoint Initialization
-The entrypoint script performs:
+### Enhanced Entrypoint Initialization
+The entrypoint script performs comprehensive initialization with robust file system setup:
 - Creating necessary directories for cache, sessions, views, logs, and public storage.
 - Fixing ownership and permissions for storage and bootstrap/cache.
-- Ensuring storage symlink exists.
+- **Enhanced** Ensuring storage symlink exists with robust dangling link detection and recreation using force mode.
 - Optionally waiting for database connectivity and running migrations.
 - Caching configuration, routes, and views; running Filament upgrade.
 - Executing Supervisor to start Nginx, PHP-FPM, and queue worker.
@@ -327,8 +327,13 @@ The entrypoint script performs:
 flowchart TD
 Start(["Entrypoint Start"]) --> CreateDirs["Create Directories"]
 CreateDirs --> FixPerms["Fix Permissions"]
-FixPerms --> EnsureSymlink["Ensure Storage Symlink"]
-EnsureSymlink --> CheckMigrations{"RUN_MIGRATIONS=true?"}
+FixPerms --> CheckSymlink{"Storage Symlink Exists?"}
+CheckSymlink --> |No| CreateSymlink["Create Storage Symlink with Force Mode"]
+CheckSymlink --> |Yes| ValidateSymlink{"Symlink Valid?"}
+ValidateSymlink --> |No| RecreateSymlink["Recreate Dangling Link"]
+ValidateSymlink --> |Yes| CheckMigrations{"RUN_MIGRATIONS=true?"}
+CreateSymlink --> CheckMigrations
+RecreateSymlink --> CheckMigrations
 CheckMigrations --> |Yes| WaitDB["Wait for DB Connection"]
 WaitDB --> RunMigrate["Run Migrations"]
 CheckMigrations --> |No| CacheStep["Cache Config/Routes/Views"]
@@ -402,6 +407,7 @@ The production stack has clear separation of concerns:
 - MariaDB stores relational data and is accessed over the internal network.
 - CI/CD pipeline depends on GitHub Actions, Docker Buildx, GHCR, and optional SSH access.
 - **Updated** Trust proxy middleware handles reverse proxy scenarios for proper HTTPS detection.
+- **Enhanced** Robust storage symlink management ensures reliable file system setup across deployments.
 
 ```mermaid
 graph TB
@@ -443,6 +449,7 @@ GHCR --> Compose
 - Queue worker runs with retry and timeout settings suitable for background jobs.
 - Database timezone is set to Asia/Jakarta to avoid conversion overhead.
 - **Updated** Trust proxy configuration adds minimal overhead while ensuring correct HTTPS handling.
+- **Enhanced** Robust storage symlink management reduces deployment failures and improves reliability.
 
 Recommendations:
 - Monitor Opcache hit rate and adjust memory_consumption based on application size.
@@ -458,12 +465,19 @@ Common issues and resolutions:
 - Missing .env: The deployment script exits early if .env is not present. Ensure .env exists with required variables such as APP_KEY and DB_PASSWORD.
 - Database connection failures: Entrypoint waits for DB connectivity and runs migrations only when reachable. Verify DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, and DB_PASSWORD.
 - Permission errors: Entrypoint sets ownership and permissions for storage and bootstrap/cache. If issues persist, verify volume mounts and user IDs.
-- Storage symlink missing: Entrypoint creates the symlink; if it fails, run storage:link manually.
+- **Enhanced** Storage symlink missing or invalid: Entrypoint creates the symlink with robust dangling link detection and force mode. If it fails, run storage:link manually with force flag.
 - Queue worker not processing: Ensure queue_connection is set appropriately and supervisor is running the queue-worker program.
 - Static assets not loading: Confirm Vite build completed and assets exist in public/build. Rebuild assets if necessary.
 - Nginx 404/502 errors: Check Nginx error log and FastCGI configuration. Ensure PHP-FPM is listening on 9000.
 - **Updated** Mixed content errors with HTTPS: Verify trust proxy configuration is active and reverse proxy sends proper X-Forwarded-* headers. Check browser console for mixed content warnings.
 - **Updated** Login form submission blocked on HTTPS: Ensure trust proxy middleware is configured and Cloudflare Tunnel is properly forwarding HTTPS requests.
+
+**Enhanced** Storage Symlink Troubleshooting:
+- **Symptom**: Storage symlinks are missing or broken after deployment
+- **Cause**: Volume mounting issues or permission problems causing dangling symlinks
+- **Solution**: The enhanced entrypoint automatically detects and recreates dangling symlinks using force mode
+- **Verification**: Check `/var/www/html/public/storage` exists and points to `/var/www/html/storage/app/public`
+- **Manual Fix**: Run `php artisan storage:link --force` if automatic recreation fails
 
 **Updated** HTTPS Proxy Troubleshooting:
 - **Symptom**: Forms fail to submit on HTTPS pages
@@ -475,6 +489,7 @@ Operational commands:
 - View container status: docker compose ps
 - Follow logs: docker compose logs -f app
 - Run artisan commands: docker compose exec -T app php artisan [command]
+- **Enhanced** Check storage symlink validity: `ls -la /var/www/html/public/storage`
 - **Updated** Test HTTPS functionality: curl -I https://your-domain.com to verify proper HTTPS response headers
 
 **Section sources**
@@ -485,7 +500,7 @@ Operational commands:
 - [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
 
 ## Conclusion
-RSV Helmet's production deployment leverages a robust, containerized stack with Nginx, PHP-FPM, and Supervisor, backed by MariaDB. The CI/CD pipeline automates testing, building, and pushing images to GHCR, with optional SSH-based deployment. Environment configuration is centralized in Compose and environment variables, while security headers and PHP hardening are applied in Nginx and PHP configs. The application now supports deployment behind reverse proxies like Cloudflare Tunnel with proper HTTPS termination handling through trust proxy configuration. For scale-out, consider horizontal scaling of app containers behind a reverse proxy, externalizing cache/session stores, and using managed databases. Disaster recovery should focus on backing up DB volumes and application storage/logs.
+RSV Helmet's production deployment leverages a robust, containerized stack with Nginx, PHP-FPM, and Supervisor, backed by MariaDB. The CI/CD pipeline automates testing, building, and pushing images to GHCR, with optional SSH-based deployment. Environment configuration is centralized in Compose and environment variables, while security headers and PHP hardening are applied in Nginx and PHP configs. The application now supports deployment behind reverse proxies like Cloudflare Tunnel with proper HTTPS termination handling through trust proxy configuration. The enhanced entrypoint initialization provides robust storage symlink management with dangling link detection and force mode for reliable file system setup. For scale-out, consider horizontal scaling of app containers behind a reverse proxy, externalizing cache/session stores, and using managed databases. Disaster recovery should focus on backing up DB volumes and application storage/logs.
 
 [No sources needed since this section summarizes without analyzing specific files]
 
@@ -513,11 +528,13 @@ These variables are defined in the Compose file and consumed by the application 
 - Limit request body size and timeouts appropriately.
 - **Updated** Configure trust proxy middleware for reverse proxy deployments to prevent mixed content issues.
 - **Updated** Verify X-Forwarded-* headers are properly handled by the application.
+- **Enhanced** Ensure storage symlinks are properly created and validated during container initialization.
 
 **Section sources**
 - [docker/production/nginx.conf:26-80](file://docker/production/nginx.conf#L26-L80)
 - [docker/production/php.ini:6-7](file://docker/production/php.ini#L6-L7)
 - [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
+- [docker/production/entrypoint.sh:18-22](file://docker/production/entrypoint.sh#L18-L22)
 
 ### Scaling and Load Balancing
 - Scale horizontally by running multiple app containers behind a reverse proxy (e.g., Nginx, HAProxy, Traefik).
@@ -525,6 +542,7 @@ These variables are defined in the Compose file and consumed by the application 
 - Use read replicas for database reads if applicable.
 - Configure health checks and graceful shutdowns for zero-downtime deployments.
 - **Updated** Ensure trust proxy configuration works across all application instances behind load balancers.
+- **Enhanced** Verify storage symlink integrity across all container instances.
 
 [No sources needed since this section provides general guidance]
 
@@ -534,6 +552,7 @@ These variables are defined in the Compose file and consumed by the application 
 - Maintain versioned images in GHCR for rollback capability.
 - Document restore steps: recreate volumes, restore backups, re-run migrations if schema changed, restart services.
 - **Updated** Verify HTTPS proxy configuration remains intact after restoration.
+- **Enhanced** Validate storage symlinks are properly recreated after volume restoration.
 
 [No sources needed since this section provides general guidance]
 

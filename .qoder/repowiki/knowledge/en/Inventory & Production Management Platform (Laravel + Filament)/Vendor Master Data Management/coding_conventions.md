@@ -1,0 +1,5 @@
+- Fillable attributes are declared via the `#[Fillable([...])]` attribute on the model rather than a `$fillable` property.
+- Boolean columns are explicitly cast through the model's `casts()` method (e.g., `is_active => 'boolean'`).
+- Filament forms use typed input components (`TextInput`, `Textarea`, `Toggle`) with Indonesian labels and field-level validation rules such as `required`, `maxLength`, and `unique(ignoreRecord: true)`.
+- Table columns mirror form fields and add `searchable`/`sortable` where appropriate, with `IconColumn::make('is_active')->boolean()` for status display.
+- Delete actions are conditionally hidden based on business constraints — here, deletion is blocked when `inventory_movements_count > 0`.

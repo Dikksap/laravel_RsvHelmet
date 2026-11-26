@@ -1,6 +1,0 @@
-- Eloquent models declare fillable fields via the `#[Fillable([...])]` attribute rather than a `$fillable` property.
-- Numeric and boolean columns are typed through `protected function casts(): array` using `'decimal:N'` and `'boolean'` casts instead of relying on defaults.
-- Each domain entity has a matching factory class under `database/factories/` named `<Model>Factory.php` and imported via `use Database\Factories\<Model>Factory;`.
-- Filament resources follow the per-entity directory layout `Resources/<Entity>/Pages/{Create,Edit,List}<Entity>.php` plus a `<Entity>Resource.php` root, with related sub-resources placed in `RelationManagers/`.
-- Navigation groups in `AdminPanelProvider` are organized into five collapsible sections: Gudang, Permintaan Barang, Produksi, Integrasi Eksternal, and Data Master.
-- Business operations are implemented as plain PHP classes under `app/Services/` returning `Collection` or arrays, keeping models free of orchestration logic.

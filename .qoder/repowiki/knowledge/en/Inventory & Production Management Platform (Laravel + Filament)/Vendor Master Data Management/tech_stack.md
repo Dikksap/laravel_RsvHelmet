@@ -1,0 +1,1 @@
+Laravel Eloquent + Filament v4 resources; Faker for test data generation; Heroicons (`heroicon-o-building-storefront`) for navigation iconography.

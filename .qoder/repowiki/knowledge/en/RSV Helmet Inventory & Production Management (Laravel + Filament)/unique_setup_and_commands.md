@@ -1,1 +1,0 @@
-Run `composer run setup` to install deps, copy `.env.example`, generate key, migrate, then `npm install --ignore-scripts && npm run build`. Development server is started via `composer run dev` (Laravel 13 `artisan dev`). Tests use PHPUnit 12 via `composer run test` (which clears config first). Docker compose exposes the app at localhost:8001 and MariaDB at localhost:3308.

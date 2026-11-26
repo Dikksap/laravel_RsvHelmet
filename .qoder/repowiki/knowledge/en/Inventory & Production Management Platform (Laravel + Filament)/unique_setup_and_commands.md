@@ -1,0 +1,1 @@
+Development uses `php artisan serve` (port 8000); production builds assets via Vite and runs under Docker with `docker-compose.prod.yml` and a custom `Dockerfile.prod` using supervisord to manage PHP-FPM, Nginx, and queue workers.

@@ -1,0 +1,4 @@
+- Each Filament resource is split into a Resource class plus a `Pages/` subdirectory containing Create/Edit/List pages, keeping UI state separate from resource configuration.
+- Complex domain operations (BOM explosion, batch progress tracking, stock movement posting, external barang sync) are extracted into dedicated `app/Services/*` classes rather than staying in controllers or models.
+- Database changes follow timestamped migration files under `database/migrations/` with one table per migration, and corresponding Eloquent models live one-per-file under `app/Models/`.
+- Test fixtures use Laravel factories paired with model factories under `database/factories/`, and feature tests target end-to-end scenarios (Filament pages, service behavior) while unit tests cover isolated service methods.

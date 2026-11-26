@@ -1,0 +1,1 @@
+Laravel (PHP) + Filament v3 admin framework; Blade views; Livewire for the public item-request form; Vite for asset compilation; PHPUnit for tests; Docker + Nginx for production deployment.

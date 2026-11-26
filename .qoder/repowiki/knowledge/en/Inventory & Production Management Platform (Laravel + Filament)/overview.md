@@ -1,0 +1,1 @@
+Laravel application exposing inventory, BOM, production-batch, stock-opname, item-request, and vendor domains through a Filament admin panel backed by Eloquent models and domain services.

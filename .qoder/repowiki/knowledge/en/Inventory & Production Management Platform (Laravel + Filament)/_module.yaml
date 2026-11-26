@@ -1,6 +1,6 @@
 schema_version: 1
 module_path: ""
-title: RSV Helmet Inventory & Production Management (Laravel + Filament)
+title: Inventory & Production Management Platform (Laravel + Filament)
 scope: []
 source_files: []
 depends_on: []

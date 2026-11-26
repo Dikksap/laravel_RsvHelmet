@@ -10,105 +10,92 @@ source_files:
     - docker-compose.yml
     - docker-compose.prod.yml
     - .github/workflows/ci-cd.yml
+    - deploy.sh
     - package.json
     - vite.config.js
     - composer.json
     - phpunit.xml
-    - deploy.sh
-    - docker/production/nginx.conf
-    - docker/production/supervisord.conf
-    - docker/production/php.ini
-    - docker/production/entrypoint.sh
 ---
 
-## Overview
+## Build System Overview
 
-This Laravel 13 / Filament 5 application uses a multi-stage Docker build driven by GitHub Actions. The pipeline installs PHP dependencies via Composer, builds frontend assets with Vite (Tailwind CSS 4), runs PHPUnit tests against an in-memory SQLite database, then publishes a multi-arch image to GitHub Container Registry (GHCR) and optionally deploys to a remote server via SSH.
+This Laravel 13 / Filament 5 application uses a multi-stage Docker build driven by GitHub Actions. The build pipeline compiles PHP dependencies via Composer, builds frontend assets with Vite (Tailwind CSS), runs PHPUnit tests against an in-memory SQLite database, and publishes images to GitHub Container Registry (GHCR).
 
-## Key Files
+### Tools & Frameworks
+- **PHP**: `php:8.4-fpm-alpine` runtime; extensions installed include `pdo_mysql`, `bcmath`, `gd`, `intl`, `zip`, `opcache`, `pcntl`.
+- **Composer** (`composer:2`): dependency resolution with `--no-dev --optimize-autoloader --no-scripts --ignore-platform-reqs` for production.
+- **Node.js 22** (`node:22-alpine`): Vite 8 + Tailwind CSS 4 build for Filament admin assets.
+- **Nginx + Supervisor**: production container serves static assets via Nginx and runs PHP-FPM + queued workers under Supervisor.
+- **Docker Compose**: development (`docker-compose.yml`) and production (`docker-compose.prod.yml`) stacks using MariaDB 11.
+- **GitHub Actions** (`.github/workflows/ci-cd.yml`): test → build/push → optional SSH deploy.
+- **PHPUnit 12** + **Laravel Pint** for testing and code style.
 
-- `Dockerfile` — development container (PHP 8.4-cli, artisan serve on port 8000).
-- `Dockerfile.prod` — production multi-stage image: composer-builder → node frontend-builder → php:8.4-fpm-alpine runtime with Nginx + Supervisor.
-- `docker-compose.yml` — local dev stack (`app` + `mariadb:11`, host port 8001).
-- `docker-compose.prod.yml` — production compose with persistent volumes (`rsv_helmet_db_data`, `rsv_helmet_app_storage`, `rsv_helmet_app_logs`), MariaDB with `utf8mb4_unicode_ci` collation and `+07:00` timezone.
-- `.github/workflows/ci-cd.yml` — the single CI/CD workflow.
-- `package.json` — Vite 8 + Tailwind CSS 4 entry points (`resources/css/app.css`, `resources/css/filament/admin/theme.css`, `resources/js/app.js`).
-- `vite.config.js` — Vite config, dev server on port 5174.
-- `composer.json` — PHP dependency manifest; scripts include `setup`, `dev`, `test`, plus Composer hooks for filament upgrades and asset publishing.
-- `phpunit.xml` — test suite configuration with in-memory SQLite.
-- `deploy.sh` — manual deployment helper script.
-- `docker/production/` — Nginx config, PHP ini, Supervisor config, entrypoint.
+### Multi-Stage Production Dockerfile (`Dockerfile.prod`)
+Three stages:
+1. **composer-builder** — installs only production Composer deps into `/app/vendor`.
+2. **frontend-builder** — installs Node deps, copies Filament vendor templates/CSS, then runs `npm run build` to emit `public/build`.
+3. **production** — PHP 8.4 FPM Alpine image with Nginx, Supervisor, and all PHP extensions; copies `.`, vendor from stage 1, and built assets from stage 2.
 
-## Build Architecture
+The development `Dockerfile` is a single-stage `php:8.4-cli` image that runs `php artisan serve --host=0.0.0.0 --port=8000`.
 
-### Multi-stage Dockerfile.prod
+### Compose Stacks
+- **Development** (`docker-compose.yml`):
+  - `app` service builds from `./Dockerfile`, mounts the source tree as a volume (`.` → `/var/www/html`), exposes port `8001:8000`, runs as host user `${UID:-1000}:${GID:-1000}` so generated files are writable without `sudo`.
+  - `db` service uses `mariadb:11` with healthcheck (`healthcheck.sh --connect --innodb_initialized`).
+- **Production** (`docker-compose.prod.yml`):
+  - Pulls prebuilt image `${IMAGE_NAME:-ghcr.io/dikksap/laravel_rsvhelmet:latest}` on port `${APP_PORT:-8001}:80`.
+  - Environment variables cover `APP_*`, `LOG_*`, `DB_*`, `SESSION_DRIVER=database`, `CACHE_STORE=database`, `QUEUE_CONNECTION=database`, plus `RUN_MIGRATIONS`.
+  - Named volumes `rsv_helmet_db_data`, `app_storage`, `app_logs` persist data/logs.
+  - Database command sets `utf8mb4_unicode_ci` collation and `+07:00` timezone.
 
-Three stages are chained:
+### CI/CD Pipeline (`.github/workflows/ci-cd.yml`)
+Three jobs chained by `needs`:
 
-1. **composer-builder** (`composer:2`): installs only production deps (`--no-dev --no-scripts --optimize-autoloader --ignore-platform-reqs`) from `composer.json` + `composer.lock`.
-2. **frontend-builder** (`node:22-alpine`): runs `npm ci`, then copies vendor from stage 1 (Filament requires vendor CSS/templates for its theme build) and runs `npm run build` to emit `public/build`.
-3. **production** (`php:8.4-fpm-alpine`): installs Nginx, Supervisor, MySQL client, and PHP extensions (`pdo_mysql`, `bcmath`, `gd`, `intl`, `zip`, `opcache`, `pcntl`); copies app source, vendor, and compiled assets; sets ownership to `www-data` with `775` on `storage` and `bootstrap/cache`; exposes port 80; entrypoint runs Supervisor.
-
-The development `Dockerfile` is intentionally minimal — it just installs PHP extensions and runs `php artisan serve` on `0.0.0.0:8000`.
-
-### Frontend Asset Pipeline
-
-Vite is configured via `laravel-vite-plugin` with three inputs: `resources/css/app.css`, `resources/css/filament/admin/theme.css`, and `resources/js/app.js`. Tailwind CSS v4 is used through `@tailwindcss/vite`. Fonts use the Bunny CDN integration (`Instrument Sans`, weights 400/500/600). Dev server runs on port 5174 with `strictPort: true` and ignores Laravel's compiled view cache directory.
-
-### Composer Scripts
-
-- `composer setup`: runs full bootstrap (install deps, copy `.env.example`, generate key, migrate, npm install + build).
-- `composer dev`: disables process timeout and runs `artisan dev`.
-- `composer test`: clears config then runs `artisan test`.
-- `post-autoload-dump`: discovers packages and runs `filament:upgrade`.
-- `post-update-cmd`: republishes Laravel assets.
-- `post-root-package-install` / `post-create-project-cmd`: seed initial `.env`, key, sqlite DB, and migrations.
-
-Composer config enforces `sort-packages: true`, `optimize-autoloader: true`, `preferred-install: dist`, and minimum stability `stable` with `prefer-stable: true`.
-
-## CI/CD Pipeline (`.github/workflows/ci-cd.yml`)
-
-Three jobs run sequentially:
-
-1. **test** (runs on every push/PR):
-   - Sets up PHP 8.4 with required extensions and Node.js 22.
+1. **test** (runs on every push/PR to `master`):
+   - Sets up PHP 8.4 (shivammathur/setup-php) and Node.js 22.
    - Caches Composer deps keyed on `composer.lock`.
-   - Runs `composer install`, `npm ci`, `npm run build`.
+   - Runs `composer install`, `npm ci && npm run build`.
    - Enforces code style via `vendor/bin/pint --test`.
-   - Copies `.env.example` to `.env`, runs `php artisan key:generate`.
-   - Executes `php artisan test --compact` with `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`.
+   - Generates `.env` + `APP_KEY`, then runs `php artisan test --compact` with `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`.
 
-2. **build-and-push** (skipped on PRs):
+2. **build-and-push** (only on non-PR pushes):
    - Uses `docker/setup-buildx-action@v3`.
-   - Logs into GHCR using `secrets.GITHUB_TOKEN`.
-   - Generates tags via `docker/metadata-action`: `latest` on `refs/heads/master`, short SHA, and tag ref.
-   - Builds with `docker/build-push-action@v6` using `./Dockerfile.prod` with GHA cache (`type=gha,mode=max`).
+   - Logs into GHCR with `docker/login-action@v3`.
+   - Tags via `docker/metadata-action@v5`: `latest` on `refs/heads/master`, short `sha`, and tag ref.
+   - Builds `./Dockerfile.prod` with GHA cache (`type=gha`).
 
-3. **deploy** (only on pushes to `master`, not PRs):
-   - Conditionally checks for `SSH_HOST` secret; if absent, skips.
-   - Uses `appleboy/ssh-action@v1.2.0` to SSH into `/opt/web/RSV_Helmet_Laravel`, pull the latest image, run `docker compose -f docker-compose.prod.yml up -d --remove-orphans`, then cache configs/routes/views inside the container.
+3. **deploy** (only on `refs/heads/master`, non-PR):
+   - Conditionally checks for `secrets.SSH_HOST`; if absent, skips.
+   - Uses `appleboy/ssh-action@v1.2.0` to SSH into the server, login to GHCR, `docker compose -f docker-compose.prod.yml pull app`, `up -d --remove-orphans`, then cache configs/routes/views inside the container.
 
-## Deployment Conventions
+### Local Deployment Script (`deploy.sh`)
+A convenience script that:
+- Requires `.env` to exist (exits with error otherwise).
+- Pulls latest image, starts containers, waits 5 seconds, then runs `config:cache`, `route:cache`, `view:cache`, `storage:link` inside the app container.
 
-- Production images are published to `ghcr.io/dikksap/laravel_rsvhelmet`.
-- The production compose file expects environment variables for `APP_KEY`, `DB_PASSWORD`, `EXTERNAL_BARANG_API_URL`; missing required vars cause Compose to fail at startup.
-- Database defaults to MariaDB 11 with `utf8mb4_unicode_ci` collation and `Asia/Jakarta` timezone.
-- Storage and logs are persisted via named volumes (`rsv_helmet_app_storage`, `rsv_helmet_app_logs`, `rsv_helmet_db_data`).
-- Manual deployment is done via `deploy.sh`, which pulls the image, starts containers, waits 5 seconds, then caches config/route/view and creates the storage symlink.
-- The CI deploy step mirrors this flow on the remote server under `/opt/web/RSV_Helmet_Laravel`.
+### Frontend Build (`package.json` + `vite.config.js`)
+- Scripts: `npm run build` → `vite build`; `npm run dev` → `vite`.
+- Inputs: `resources/css/app.css`, `resources/css/filament/admin/theme.css`, `resources/js/app.js`.
+- Uses `laravel-vite-plugin` with `refresh: true` and Tailwind CSS v4 via `@tailwindcss/vite`.
+- Dev server runs on port `5174` with `strictPort: true`, ignoring compiled Blade views.
 
-## Testing Setup
+### Composer Scripts (`composer.json`)
+- `setup`: full bootstrap (install deps, copy `.env.example`, keygen, migrate, npm install+build).
+- `dev`: disables process timeout and runs `artisan dev`.
+- `test`: clears config then runs `artisan test`.
+- `post-autoload-dump`: package discovery + `filament:upgrade`.
+- `post-update-cmd`: publishes Laravel assets.
+- `post-root-package-install` / `post-create-project-cmd`: env/keygen/migrate scaffolding.
 
-- Tests use SQLite in-memory database (`:memory:`) — no external DB needed.
-- Cache/session/mail/queue drivers are set to `array`/`null`/`sync` for speed.
-- Bcrypt rounds lowered to 4 for faster test execution.
-- Test source coverage is scoped to `app/`.
+### Test Configuration (`phpunit.xml`)
+- Two suites: `Unit` (`tests/Unit`) and `Feature` (`tests/Feature`).
+- Source coverage includes `app/`.
+- Hardcoded test environment: `APP_ENV=testing`, `DB_CONNECTION=sqlite`, `DB_DATABASE=:memory:`, `CACHE_STORE=array`, `SESSION_DRIVER=array`, `QUEUE_CONNECTION=sync`, `MAIL_MAILER=array`.
 
-## Constraints Observed
-
-- PHP version is pinned to `^8.3` in `composer.json` and built with PHP 8.4 in both CI and Dockerfiles.
-- Node.js is pinned to 22 across CI and the production frontend builder.
-- Composer lockfile is committed and used as the cache key in CI.
-- Pint is enforced as a gate (`pint --test`) before tests run.
-- Production builds ignore platform requirements (`--ignore-platform-reqs`) during Composer install.
-- Filament v5 requires vendor assets to be present during the Vite build stage.
+### Key Conventions Observed
+- Production images are multi-stage and never contain dev dependencies or source trees beyond what's needed at runtime.
+- Frontend assets are built in a separate Node stage and copied into the final image — the runtime image does not need Node.
+- Development uses bind-mounted source volumes so hot-reload works; production uses prebuilt images pulled from GHCR.
+- Database migrations are controlled via the `RUN_MIGRATIONS` env var in production compose.
+- CI enforces both code style (`pint --test`) and passing tests before any image is built or pushed.
+- Image tagging follows semantic tags: `latest` for master branch, short SHA, and Git tag refs.

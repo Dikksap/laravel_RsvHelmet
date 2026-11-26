@@ -8,6 +8,7 @@ services:
     user: "${UID:-1000}:${GID:-1000}"
     environment:
       HOME: /tmp
+      TZ: Asia/Jakarta
     ports:
       - "8001:8000"
     extra_hosts:
