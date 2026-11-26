@@ -113,6 +113,11 @@ class InventoryBalanceSummary extends Page implements HasTable
                     ->searchable()
                     ->sortable()
                     ->wrap(),
+                TextColumn::make('division.name')
+                    ->label('Divisi')
+                    ->placeholder('—')
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('type.name')
                     ->label('Jenis')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -152,6 +157,11 @@ class InventoryBalanceSummary extends Page implements HasTable
                     ->multiple()
                     ->searchable()
                     ->query(fn (Builder $query): Builder => $this->whereStoredInWarehouses($query)),
+                SelectFilter::make('division_id')
+                    ->label('Divisi')
+                    ->relationship('division', 'name')
+                    ->searchable()
+                    ->preload(),
                 SelectFilter::make('item_type_id')
                     ->label('Jenis barang')
                     ->relationship('type', 'name')
@@ -187,7 +197,7 @@ class InventoryBalanceSummary extends Page implements HasTable
 
         return Item::query()
             ->where('is_stockable', true)
-            ->with('baseUom')
+            ->with(['baseUom', 'division'])
             ->withSum(
                 ['inventoryBalances as total_stock_all_warehouses' => fn (Builder $query): Builder => $query->when(
                     $warehouseIds !== [],

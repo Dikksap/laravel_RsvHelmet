@@ -4,6 +4,9 @@
 **Referenced Files in This Document**
 - [AdminPanelProvider.php](file://app/Providers/Filament/AdminPanelProvider.php)
 - [Dashboard.php](file://app/Filament/Pages/Dashboard.php)
+- [DaftarBarangEksternal.php](file://app/Filament/Pages/DaftarBarangEksternal.php)
+- [daftar-barang-eksternal.blade.php](file://resources/views/filament/pages/daftar-barang-eksternal.blade.php)
+- [DashboardStatsOverview.php](file://app/Filament/Widgets/DashboardStatsOverview.php)
 - [InfiniteSelect.php](file://app/Filament/Forms/Components/InfiniteSelect.php)
 - [theme.css](file://resources/css/filament/admin/theme.css)
 - [ItemResource.php](file://app/Filament/Resources/Items/ItemResource.php)
@@ -28,10 +31,11 @@
 
 ## Update Summary
 **Changes Made**
-- Updated documentation to reflect dashboard simplification: Dashboard.php was significantly simplified by removing custom subheadings, column configurations, and header actions
-- Enhanced navigation structure with new 'Halaman Utama' (Main Page) item in AdminPanelProvider
+- Enhanced DaftarBarangEksternal page with comprehensive form interface replacing toggle switches, improved validation, and better user experience
+- Added registration of DashboardStatsOverview widget in AdminPanelProvider for enhanced dashboard analytics
+- Updated navigation structure with new 'Halaman Utama' (Main Page) item in AdminPanelProvider
 - Simplified dashboard architecture focusing on essential widgets only
-- Updated widget references to match current implementation (OutOfStockItemsTable and RecentMovementsTable)
+- Enhanced external barang management with batch synchronization capabilities
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -46,10 +50,10 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-This document explains the comprehensive Filament admin panel implementation for inventory, production, and master data management. The system includes a complete authentication system, full CRUD resources for all business entities, custom pages for complex workflows, import/export functionality, custom form components, and streamlined analytics widgets. The panel provides enhanced warehouse stock management with dedicated pages for per-warehouse stock viewing, inventory balance summaries, and stock card tracking. It also includes guidelines for adding new resources and customizing existing ones.
+This document explains the comprehensive Filament admin panel implementation for inventory, production, and master data management. The system includes a complete authentication system, full CRUD resources for all business entities, custom pages for complex workflows, import/export functionality, custom form components, and streamlined analytics widgets. The panel provides enhanced warehouse stock management with dedicated pages for per-warehouse stock viewing, inventory balance summaries, and stock card tracking. It also includes advanced external barang integration with batch synchronization capabilities and guidelines for adding new resources and customizing existing ones.
 
 ## Project Structure
-The admin panel is configured through a single provider that registers navigation groups, discovers resources and widgets, mounts custom pages, and applies theme and middleware. Resources are organized by domain under Filament/Resources with associated Pages and RelationManagers. Custom form components live under Filament/Forms/Components, and dashboard widgets under Filament/Widgets. The system includes specialized warehouse management pages under Filament/Pages for enhanced inventory control. Styling is centralized in a Vite-managed CSS file.
+The admin panel is configured through a single provider that registers navigation groups, discovers resources and widgets, mounts custom pages, and applies theme and middleware. Resources are organized by domain under Filament/Resources with associated Pages and RelationManagers. Custom form components live under Filament/Forms/Components, and dashboard widgets under Filament/Widgets. The system includes specialized warehouse management pages under Filament/Pages for enhanced inventory control and external barang integration. Styling is centralized in a Vite-managed CSS file.
 
 ```mermaid
 graph TB
@@ -60,7 +64,8 @@ Provider --> DiscoverPages["Discover Pages"]
 Provider --> DiscoverWidgets["Discover Widgets"]
 Provider --> Theme["Vite Theme<br/>admin/theme.css"]
 Provider --> Middleware["Middleware Stack"]
-DashboardPage["Simplified Dashboard Page"] --> EssentialWidgets["Essential Widgets<br/>OutOfStockItemsTable, RecentMovementsTable"]
+DashboardPage["Simplified Dashboard Page"] --> EssentialWidgets["Essential Widgets<br/>DashboardStatsOverview, OutOfStockItemsTable, RecentMovementsTable"]
+ExternalBarangIntegration["External Barang Integration"] --> DaftarBarangEksternal["Enhanced DaftarBarangEksternal Page"]
 WarehousePages["Warehouse Stock Pages"] --> InventoryIntegration["Inventory Management Integration"]
 ItemRes["Item Resource"] --> BomLink["BOM Builder Link"]
 BomPage["BOM Builder Page"] --> BOMTree["Composition Tree & Shopping List"]
@@ -71,6 +76,8 @@ ImportExport["Import/Export System"] --> BulkOperations["Bulk Operations"]
 **Diagram sources**
 - [AdminPanelProvider.php:31-61](file://app/Providers/Filament/AdminPanelProvider.php#L31-L61)
 - [Dashboard.php:7-15](file://app/Filament/Pages/Dashboard.php#L7-L15)
+- [DaftarBarangEksternal.php:34-50](file://app/Filament/Pages/DaftarBarangEksternal.php#L34-L50)
+- [DashboardStatsOverview.php:16-47](file://app/Filament/Widgets/DashboardStatsOverview.php#L16-L47)
 - [ItemResource.php:261-278](file://app/Filament/Resources/Items/ItemResource.php#L261-L278)
 - [BomBuilder.php:26-42](file://app/Filament/Pages/BomBuilder.php#L26-L42)
 - [WarehouseStock.php:15-29](file://app/Filament/Pages/WarehouseStock.php#L15-L29)
@@ -83,8 +90,10 @@ ImportExport["Import/Export System"] --> BulkOperations["Bulk Operations"]
   - Default panel id and path, login page, primary color, Vite theme, SPA mode, relation manager behavior, navigation groups, discovery of resources/pages/widgets, registered widgets, render hooks, and middleware stack.
 - Authentication system:
   - Custom login page with branding integration and lockup partials.
-- **Simplified Dashboard page**:
-  - Minimal configuration with single-column layout focused on essential widgets.
+- **Enhanced Dashboard with Stats Overview**:
+  - Comprehensive statistics dashboard showing total items, daily transactions, running batches, and pending requests with direct navigation links.
+- **Enhanced External Barang Integration**:
+  - DaftarBarangEksternal page with comprehensive form interface for filtering external barang data by date range and status, batch synchronization capabilities, and variant mapping management.
 - Custom form component InfiniteSelect:
   - Extends base infinite select to support paginated options and search results via exposed methods.
 - Key resources:
@@ -99,12 +108,15 @@ ImportExport["Import/Export System"] --> BulkOperations["Bulk Operations"]
   - InventoryBalanceSummary: Comprehensive inventory overview across all warehouses with advanced filtering.
   - StockCard: Transaction history with running balance calculations and production batch tracking.
 - **Streamlined dashboard widgets**:
+  - DashboardStatsOverview: Comprehensive statistics overview with key metrics and navigation links.
   - OutOfStockItemsTable: Displays items with zero or minimum stock levels.
   - RecentMovementsTable: Shows recent inventory transactions with type indicators.
 
 **Section sources**
 - [AdminPanelProvider.php:31-96](file://app/Providers/Filament/AdminPanelProvider.php#L31-L96)
 - [Dashboard.php:7-15](file://app/Filament/Pages/Dashboard.php#L7-L15)
+- [DaftarBarangEksternal.php:34-464](file://app/Filament/Pages/DaftarBarangEksternal.php#L34-L464)
+- [DashboardStatsOverview.php:16-47](file://app/Filament/Widgets/DashboardStatsOverview.php#L16-L47)
 - [InfiniteSelect.php:9-41](file://app/Filament/Forms/Components/InfiniteSelect.php#L9-L41)
 - [ItemResource.php:55-278](file://app/Filament/Resources/Items/ItemResource.php#L55-L278)
 - [ProductionBatchResource.php:33-196](file://app/Filament/Resources/ProductionBatches/ProductionBatchResource.php#L33-L196)
@@ -122,7 +134,7 @@ ImportExport["Import/Export System"] --> BulkOperations["Bulk Operations"]
 The admin panel follows a layered structure:
 - Provider layer configures the panel, navigation, discovery, widgets, and middleware.
 - Authentication layer provides secure access with custom branding.
-- Pages provide custom UI beyond standard CRUD, such as the simplified dashboard, BOM builder, and enhanced warehouse stock management interfaces.
+- Pages provide custom UI beyond standard CRUD, such as the enhanced dashboard, external barang integration, BOM builder, and enhanced warehouse stock management interfaces.
 - Resources encapsulate model-specific forms, tables, filters, actions, and relations.
 - Widgets deliver essential dashboard analytics using services.
 - Custom form components extend Filament's capabilities for large datasets.
@@ -139,6 +151,16 @@ class AuthSystem {
 }
 class Dashboard {
 +getColumns()
+}
+class DashboardStatsOverview {
++getStats()
+}
+class DaftarBarangEksternal {
++filterForm(schema)
++applyFilter()
++resetFilter()
++getGroupedData(apiService)
++externalBatchPreview(get)
 }
 class WarehouseStock {
 +getWarehouses()
@@ -205,7 +227,9 @@ class BomBuilder {
 +exportCsv()
 }
 AdminPanelProvider --> Dashboard : "registers"
+AdminPanelProvider --> DashboardStatsOverview : "registers widget"
 AdminPanelProvider --> AuthSystem : "configures"
+AdminPanelProvider --> DaftarBarangEksternal : "discovers"
 AdminPanelProvider --> WarehouseStock : "discovers"
 AdminPanelProvider --> WarehouseStockDetail : "discovers"
 AdminPanelProvider --> InventoryBalanceSummary : "discovers"
@@ -220,6 +244,7 @@ AdminPanelProvider --> RecentMovementsTable : "registers widget"
 ItemResource --> InfiniteSelect : "uses"
 InventoryBalanceResource --> InfiniteSelect : "uses"
 BomBuilder --> InfiniteSelect : "uses"
+DaftarBarangEksternal --> InfiniteSelect : "uses"
 WarehouseStock --> InventoryBalanceResource : "links to"
 WarehouseStockDetail --> InventoryBalanceResource : "links to"
 InventoryBalanceSummary --> WarehouseStock : "links to"
@@ -228,6 +253,8 @@ InventoryBalanceSummary --> WarehouseStock : "links to"
 **Diagram sources**
 - [AdminPanelProvider.php:31-96](file://app/Providers/Filament/AdminPanelProvider.php#L31-L96)
 - [Dashboard.php:7-15](file://app/Filament/Pages/Dashboard.php#L7-L15)
+- [DashboardStatsOverview.php:16-47](file://app/Filament/Widgets/DashboardStatsOverview.php#L16-L47)
+- [DaftarBarangEksternal.php:34-464](file://app/Filament/Pages/DaftarBarangEksternal.php#L34-L464)
 - [WarehouseStock.php:15-89](file://app/Filament/Pages/WarehouseStock.php#L15-L89)
 - [WarehouseStockDetail.php:19-149](file://app/Filament/Pages/WarehouseStockDetail.php#L19-L149)
 - [InventoryBalanceSummary.php:22-243](file://app/Filament/Pages/InventoryBalanceSummary.php#L22-L243)
@@ -248,7 +275,7 @@ InventoryBalanceSummary --> WarehouseStock : "links to"
 - The panel sets default id/path, login page, primary color, Vite theme, SPA mode, and disables read-only relation managers on resource view pages by default.
 - Navigation groups: Gudang, Permintaan Barang, Produksi, Integrasi Eksternal, Data Master (all collapsible).
 - **Enhanced navigation items**: Added "Halaman Utama" (Main Page) navigation item with external link icon pointing to the main application URL.
-- Discovery: resources, pages, and widgets are auto-discovered; specific widgets are explicitly registered.
+- Discovery: resources, pages, and widgets are auto-discovered; specific widgets are explicitly registered including the new DashboardStatsOverview.
 - Render hooks inject branding and lockup partials into auth layouts and append an SPA fix script at body end.
 - Middleware includes encryption, session handling, CSRF protection, binding substitution, and Filament-specific middleware.
 
@@ -258,7 +285,7 @@ Start([Panel Boot]) --> Config["Set id, path, login, colors, theme, SPA"]
 Config --> Nav["Define navigation groups"]
 Nav --> NavItems["Add Halaman Utama navigation item"]
 NavItems --> Discover["Discover resources/pages/widgets"]
-Discover --> Widgets["Register essential dashboard widgets"]
+Discover --> Widgets["Register essential dashboard widgets<br/>DashboardStatsOverview, RecentMovementsTable, OutOfStockItemsTable"]
 Widgets --> Hooks["Render hooks for branding and SPA fix"]
 Hooks --> Middleware["Apply request middleware"]
 Middleware --> End([Ready])
@@ -278,25 +305,72 @@ Middleware --> End([Ready])
 **Section sources**
 - [AdminPanelProvider.php:71-82](file://app/Providers/Filament/AdminPanelProvider.php#L71-L82)
 
-### Simplified Dashboard Page
-- **Updated**: Now provides minimal configuration with single-column layout for essential widgets.
-- Removed custom subheading, header actions, and complex widget configurations.
-- Focuses on clean presentation of OutOfStockItemsTable and RecentMovementsTable widgets.
+### Enhanced Dashboard with Stats Overview
+- **Updated**: Now provides comprehensive statistics dashboard with key business metrics.
+- DashboardStatsOverview widget displays total items, daily transactions, running production batches, and pending item requests.
+- Each statistic includes icons, colors, descriptions, and direct navigation links to relevant resources.
+- Single-column layout optimized for mobile responsiveness.
 
 ```mermaid
 sequenceDiagram
 participant User as "User"
-participant Dashboard as "Simplified Dashboard"
+participant Dashboard as "Enhanced Dashboard"
+participant StatsWidget as "DashboardStatsOverview"
 User->>Dashboard : Open dashboard
 Dashboard-->>User : Render single-column layout
-Dashboard-->>User : Display essential widgets
+Dashboard->>StatsWidget : Load statistics
+StatsWidget-->>User : Display key metrics with navigation
 ```
 
 **Diagram sources**
 - [Dashboard.php:7-15](file://app/Filament/Pages/Dashboard.php#L7-L15)
+- [DashboardStatsOverview.php:16-47](file://app/Filament/Widgets/DashboardStatsOverview.php#L16-L47)
 
 **Section sources**
 - [Dashboard.php:7-15](file://app/Filament/Pages/Dashboard.php#L7-L15)
+- [DashboardStatsOverview.php:16-47](file://app/Filament/Widgets/DashboardStatsOverview.php#L16-L47)
+
+### Enhanced External Barang Integration
+
+#### DaftarBarangEksternal Page
+- **Enhanced**: Comprehensive external barang management page with advanced filtering and batch synchronization capabilities.
+- **New Form Interface**: Replaces toggle switches with structured form components including date range pickers and status filters.
+- **Improved Validation**: Robust validation for batch synchronization operations with detailed error handling.
+- **Better User Experience**: Compact filter section, real-time preview of batch synchronization, and comprehensive status tracking.
+
+Key Features:
+- **Advanced Filtering**: Date range selection (tanggal_awal/tanggal_akhir) and status filtering with dynamic options from API service.
+- **Grouped Data Display**: Organizes external barang data by production date with comprehensive statistics including total units, finish goods, register count, and synced quantities.
+- **Batch Synchronization**: Advanced form for synchronizing stock from external API with production batch linking, warehouse destination selection, and unit limits.
+- **Variant Mapping**: Modal interface for mapping external variants to internal RSV items using InfiniteSelect for large option sets.
+- **Real-time Preview**: Live preview of batch output showing unit counts, mapped items, and unmapped variants before synchronization.
+
+```mermaid
+flowchart TD
+A["Open DaftarBarangEksternal"] --> B["Load filter form"]
+B --> C{"Date range selected?"}
+C --> |Yes| D["Apply date filters"]
+C --> |No| E["Show all dates"]
+D --> F["Load grouped data"]
+E --> F
+F --> G["Display statistics cards"]
+G --> H["Render grouped table"]
+H --> I{"Sync action?"}
+I --> |Yes| J["Open sync modal"]
+J --> K["Validate inputs"]
+K --> L["Preview batch output"]
+L --> M["Execute synchronization"]
+M --> N["Show success notification"]
+```
+
+**Diagram sources**
+- [DaftarBarangEksternal.php:84-105](file://app/Filament/Pages/DaftarBarangEksternal.php#L84-L105)
+- [DaftarBarangEksternal.php:261-426](file://app/Filament/Pages/DaftarBarangEksternal.php#L261-L426)
+- [daftar-barang-eksternal.blade.php:1-151](file://resources/views/filament/pages/daftar-barang-eksternal.blade.php#L1-L151)
+
+**Section sources**
+- [DaftarBarangEksternal.php:34-464](file://app/Filament/Pages/DaftarBarangEksternal.php#L34-L464)
+- [daftar-barang-eksternal.blade.php:1-151](file://resources/views/filament/pages/daftar-barang-eksternal.blade.php#L1-L151)
 
 ### Enhanced Warehouse Stock Management Pages
 
@@ -582,6 +656,10 @@ Update --> Notify["Notification feedback"]
 - [LinesRelationManager.php:27-229](file://app/Filament/Resources/StockOpnames/RelationManagers/LinesRelationManager.php#L27-L229)
 
 ### Streamlined Dashboard Widgets
+- **DashboardStatsOverview**:
+  - Comprehensive statistics dashboard showing key business metrics including total items, daily transactions, running production batches, and pending item requests.
+  - Each statistic includes appropriate icons, colors, descriptions, and direct navigation links to relevant resources.
+  - Optimized for quick loading with efficient database queries.
 - **OutOfStockItemsTable**:
   - Displays items with zero or below minimum stock levels.
   - Shows item code, name, warehouse, stock quantity, minimum quantity, and stock status.
@@ -597,24 +675,31 @@ Update --> Notify["Notification feedback"]
 sequenceDiagram
 participant Widget as "Widget"
 participant Database as "Database"
-Widget->>Database : Query recent movements/out-of-stock items
+Widget->>Database : Query statistics/recent movements/out-of-stock items
 Database-->>Widget : Return filtered data
 Widget-->>User : Render table with limited results
 ```
 
 **Diagram sources**
+- [DashboardStatsOverview.php:23-46](file://app/Filament/Widgets/DashboardStatsOverview.php#L23-L46)
 - [OutOfStockItemsTable.php:19-62](file://app/Filament/Widgets/OutOfStockItemsTable.php#L19-L62)
 - [RecentMovementsTable.php:19-77](file://app/Filament/Widgets/RecentMovementsTable.php#L19-L77)
 
 **Section sources**
+- [DashboardStatsOverview.php:16-47](file://app/Filament/Widgets/DashboardStatsOverview.php#L16-L47)
 - [OutOfStockItemsTable.php:13-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L13-L64)
 - [RecentMovementsTable.php:13-79](file://app/Filament/Widgets/RecentMovementsTable.php#L13-L79)
 
 ## Dependency Analysis
 - Provider depends on:
-  - Auth Login page, Dashboard page, multiple widgets, navigation groups, render hooks, and middleware.
+  - Auth Login page, Dashboard page, multiple widgets including DashboardStatsOverview, navigation groups, render hooks, and middleware.
 - Resources depend on:
   - Models, services (e.g., StockMovementService), custom components (InfiniteSelect), and related relation managers.
+- **Enhanced external barang integration depends on**:
+  - ExternalBarangApiService for API communication and status options.
+  - ExternalBarangSyncService for batch synchronization operations.
+  - ExternalItemMapping and ExternalSyncedBarang models for data persistence.
+  - ProductionBatch and Warehouse models for synchronization context.
 - **Enhanced warehouse pages depend on**:
   - InventoryBalance models and resources for stock data access.
   - Warehouse models for location-based filtering.
@@ -626,9 +711,12 @@ Widget-->>User : Render table with limited results
 
 ```mermaid
 graph LR
-Provider["AdminPanelProvider"] --> Widgets["Essential Widgets"]
+Provider["AdminPanelProvider"] --> Widgets["Essential Widgets<br/>DashboardStatsOverview, OutOfStockItemsTable, RecentMovementsTable"]
 Provider --> Pages["Pages"]
 Provider --> Resources["Resources"]
+Pages --> ExternalBarang["Enhanced External Barang Integration"]
+ExternalBarang --> ApiServices["ExternalBarangApiService, ExternalBarangSyncService"]
+ExternalBarang --> ExternalModels["ExternalItemMapping, ExternalSyncedBarang"]
 Pages --> WarehousePages["Enhanced Warehouse Stock Pages"]
 WarehousePages --> InventoryModels["Inventory Models"]
 WarehousePages --> WarehouseModels["Warehouse Models"]
@@ -642,6 +730,8 @@ Pages --> Services
 
 **Diagram sources**
 - [AdminPanelProvider.php:31-96](file://app/Providers/Filament/AdminPanelProvider.php#L31-L96)
+- [DaftarBarangEksternal.php:34-464](file://app/Filament/Pages/DaftarBarangEksternal.php#L34-L464)
+- [DashboardStatsOverview.php:16-47](file://app/Filament/Widgets/DashboardStatsOverview.php#L16-L47)
 - [WarehouseStock.php:15-89](file://app/Filament/Pages/WarehouseStock.php#L15-L89)
 - [WarehouseStockDetail.php:19-149](file://app/Filament/Pages/WarehouseStockDetail.php#L19-L149)
 - [InventoryBalanceSummary.php:22-243](file://app/Filament/Pages/InventoryBalanceSummary.php#L22-L243)
@@ -653,6 +743,8 @@ Pages --> Services
 
 **Section sources**
 - [AdminPanelProvider.php:31-96](file://app/Providers/Filament/AdminPanelProvider.php#L31-L96)
+- [DaftarBarangEksternal.php:34-464](file://app/Filament/Pages/DaftarBarangEksternal.php#L34-L464)
+- [DashboardStatsOverview.php:16-47](file://app/Filament/Widgets/DashboardStatsOverview.php#L16-L47)
 - [InventoryBalanceResource.php:385-401](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L385-L401)
 - [OutOfStockItemsTable.php:19-62](file://app/Filament/Widgets/OutOfStockItemsTable.php#L19-L62)
 - [RecentMovementsTable.php:19-77](file://app/Filament/Widgets/RecentMovementsTable.php#L19-L77)
@@ -662,9 +754,9 @@ Pages --> Services
 - Use InfiniteSelect for large option sets to avoid heavy client-side payloads.
 - Enable infinite lists on tables to improve responsiveness with large datasets.
 - Aggregate data in queries (e.g., withSum/withCount) to reduce N+1 issues.
-- **Streamlined widgets optimize performance through**:
-  - Limited result sets (8 items maximum) for quick dashboard loading.
-  - Efficient database queries with proper indexing.
+- **Enhanced widgets optimize performance through**:
+  - Efficient database queries with proper indexing and minimal joins.
+  - DashboardStatsOverview uses optimized counting queries for key metrics.
   - No polling intervals on essential widgets to reduce server load.
 - Bulk operations should group by origin and use transactions to minimize DB round-trips.
 - **Enhanced warehouse pages optimize performance through**:
@@ -672,6 +764,10 @@ Pages --> Services
   - Database-level aggregation for stock summaries using SQL window functions.
   - Pagination on large stock lists to prevent memory overload.
   - Filtered queries that scope data to specific warehouses when needed.
+- **External barang integration optimization**:
+  - Grouped data processing reduces redundant API calls.
+  - Efficient lookup structures for mapping and synced counts.
+  - Batch synchronization operations use transactional updates.
 
 [No sources needed since this section provides general guidance]
 
@@ -686,6 +782,12 @@ Pages --> Services
   - Avoid setting an item as its own component or creating nested loops.
 - Draft-only actions missing:
   - Ensure record status is draft where required (e.g., deleting stock opname lines).
+- **Enhanced external barang integration troubleshooting**:
+  - Filter form not working: Check date format validation and status filter options from API service.
+  - Batch synchronization fails: Verify production batch exists, warehouse is valid, and external batch code is correct.
+  - Variant mapping not saving: Ensure external_variant_id is unique and item_id points to valid RSV item.
+  - Preview not showing data: Check if external_batch_code and external_status are properly set before calling preview.
+  - Status options empty: Verify ExternalBarangApiService::getStatusOptions() returns valid data.
 - **Enhanced warehouse pages troubleshooting**:
   - Warehouse cards not displaying: Check if warehouses exist and have proper balance data.
   - Low stock badge not updating: Verify InventoryBalance::lowStock() scope is working correctly.
@@ -693,7 +795,7 @@ Pages --> Services
   - Inventory summary filters not working: Check warehouse filter state parsing in getSelectedWarehouseIds().
   - Authentication issues: Verify custom login page is properly configured and branding partials are accessible.
 - **Dashboard troubleshooting**:
-  - Widgets not displaying: Check widget registration in AdminPanelProvider and ensure widgets are properly discovered.
+  - Statistics not displaying: Check DashboardStatsOverview widget registration in AdminPanelProvider and ensure widgets are properly discovered.
   - Single column layout issues: Verify Dashboard.php getColumns() method returns correct value.
   - Navigation item not appearing: Check AdminPanelProvider navigationItems configuration.
 
@@ -702,6 +804,7 @@ Pages --> Services
 - [InventoryBalanceResource.php:330-419](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L330-L419)
 - [ItemComponentsRelationManager.php:66-74](file://app/Filament/Resources/Items/RelationManagers/ItemComponentsRelationManager.php#L66-L74)
 - [StockOpnameResource.php:168-173](file://app/Filament/Resources/StockOpnames/RelationManagers/LinesRelationManager.php#L168-L173)
+- [DaftarBarangEksternal.php:261-426](file://app/Filament/Pages/DaftarBarangEksternal.php#L261-L426)
 - [WarehouseStock.php:31-46](file://app/Filament/Pages/WarehouseStock.php#L31-L46)
 - [StockCard.php:46-52](file://app/Filament/Pages/StockCard.php#L46-L52)
 - [InventoryBalanceSummary.php:206-214](file://app/Filament/Pages/InventoryBalanceSummary.php#L206-L214)
@@ -710,7 +813,7 @@ Pages --> Services
 - [AdminPanelProvider.php:56-61](file://app/Providers/Filament/AdminPanelProvider.php#L56-L61)
 
 ## Conclusion
-The streamlined Filament admin panel provides a robust foundation for managing inventory, production, and master data. With the simplified dashboard focusing on essential widgets, enhanced warehouse stock management pages, authentication system, and optimized navigation, the system now offers efficient visibility and control over inventory levels across multiple locations. The new streamlined approach reduces complexity while maintaining essential functionality, providing intuitive interfaces for monitoring stock levels, tracking transactions, and analyzing inventory trends. Following the patterns outlined here will help you extend the system consistently and maintain performance and usability.
+The enhanced Filament admin panel provides a robust foundation for managing inventory, production, and master data. With the comprehensive dashboard featuring DashboardStatsOverview, advanced external barang integration through DaftarBarangEksternal, enhanced warehouse stock management pages, authentication system, and optimized navigation, the system now offers superior visibility and control over inventory levels across multiple locations. The new streamlined approach reduces complexity while maintaining essential functionality, providing intuitive interfaces for monitoring stock levels, tracking transactions, analyzing inventory trends, and managing external barang synchronization. Following the patterns outlined here will help you extend the system consistently and maintain performance and usability.
 
 [No sources needed since this section summarizes without analyzing specific files]
 
@@ -770,6 +873,12 @@ Auth --> Mobile["Mobile stacked layout"]
   - Use single-column layout for better mobile responsiveness.
   - Limit widget data to essential information for quick loading.
   - Consider adding navigation items for quick access to key features.
+- **For external integration pages**:
+  - Follow the pattern established by DaftarBarangEksternal for API integration.
+  - Implement comprehensive form interfaces with proper validation.
+  - Provide real-time previews and batch operation capabilities.
+  - Handle API errors gracefully with user-friendly notifications.
+  - Use InfiniteSelect for large option sets in mapping operations.
 
 **Section sources**
 - [ItemResource.php:37-298](file://app/Filament/Resources/Items/ItemResource.php#L37-L298)
@@ -777,6 +886,7 @@ Auth --> Mobile["Mobile stacked layout"]
 - [WarehouseResource.php:26-130](file://app/Filament/Resources/Warehouses/WarehouseResource.php#L26-L130)
 - [StockOpnameResource.php:27-205](file://app/Filament/Resources/StockOpnames/StockOpnameResource.php#L27-L205)
 - [InventoryBalanceResource.php:43-445](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L43-L445)
+- [DaftarBarangEksternal.php:34-464](file://app/Filament/Pages/DaftarBarangEksternal.php#L34-L464)
 - [WarehouseStock.php:15-89](file://app/Filament/Pages/WarehouseStock.php#L15-L89)
 - [WarehouseStockDetail.php:19-149](file://app/Filament/Pages/WarehouseStockDetail.php#L19-L149)
 - [InventoryBalanceSummary.php:22-243](file://app/Filament/Pages/InventoryBalanceSummary.php#L22-L243)

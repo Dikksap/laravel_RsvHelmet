@@ -2,21 +2,25 @@
 
 <cite>
 **Referenced Files in This Document**
+- [DashboardStatsOverview.php](file://app/Filament/Widgets/DashboardStatsOverview.php)
 - [OutOfStockItemsTable.php](file://app/Filament/Widgets/OutOfStockItemsTable.php)
 - [RecentMovementsTable.php](file://app/Filament/Widgets/RecentMovementsTable.php)
 - [Dashboard.php](file://app/Filament/Pages/Dashboard.php)
-- [InventoryBalance.php](file://app/Models/InventoryBalance.php)
+- [Item.php](file://app/Models/Item.php)
 - [InventoryMovement.php](file://app/Models/InventoryMovement.php)
+- [ProductionBatch.php](file://app/Models/ProductionBatch.php)
+- [ItemRequest.php](file://app/Models/ItemRequest.php)
+- [InventoryBalance.php](file://app/Models/InventoryBalance.php)
 - [InventoryBalanceResource.php](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php)
 </cite>
 
 ## Update Summary
 **Changes Made**
-- Complete replacement of production monitoring widgets with inventory-focused widgets
-- Removed documentation for BatchProgressChart, BatchProgressTable, BatchStatusChart, ProductionOverview, and RecentCompletedBatchesTable
-- Added documentation for OutOfStockItemsTable and RecentMovementsTable widgets
-- Updated architecture to focus on inventory management instead of production batch tracking
-- Revised all diagrams and examples to reflect the new inventory system
+- Added comprehensive documentation for the new DashboardStatsOverview widget providing real-time metrics and KPIs
+- Enhanced the dashboard architecture section to include the stats overview component
+- Updated widget lifecycle methods reference to include StatsOverviewWidget patterns
+- Expanded examples to demonstrate creating custom stat widgets with clickable navigation
+- Added performance considerations specific to real-time metric calculations
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -31,20 +35,22 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-This document explains the dashboard widgets that provide inventory management insights through real-time stock monitoring and movement tracking. It covers:
-- Inventory-focused widgets replacing production monitoring functionality
+This document explains the dashboard widgets that provide comprehensive inventory management insights through real-time stock monitoring, movement tracking, and key performance indicators. It covers:
+- **DashboardStatsOverview**: Real-time metrics widget displaying total inventory items, daily transactions, active production batches, and pending item requests with clickable navigation
+- Inventory-focused table widgets replacing production monitoring functionality
 - Table widgets for displaying out-of-stock items and recent inventory movements
 - Real-time inventory status tracking with stock level monitoring
 - Widget lifecycle methods, data fetching strategies, and responsive design considerations
 - Examples of creating custom inventory widgets and integrating with inventory models
 
-The implementation uses Filament table widgets backed by inventory models to provide comprehensive inventory visibility and control.
+The implementation uses Filament widgets backed by inventory models to provide comprehensive inventory visibility and control, combining both statistical overviews and detailed tabular data.
 
 ## Project Structure
 The dashboard is composed of:
-- A Filament dashboard page that hosts inventory widgets
+- A Filament dashboard page that hosts all widgets including the new stats overview
+- Stats overview widget for real-time KPIs and metrics
 - Table widgets for monitoring stock levels and tracking inventory movements
-- Inventory models defining stock balances and movement types
+- Inventory models defining stock balances, movements, and business entities
 - Resource classes providing reusable components and business logic
 
 ```mermaid
@@ -53,57 +59,79 @@ subgraph "Filament Pages"
 D["Dashboard.php"]
 end
 subgraph "Filament Widgets"
+DSO["DashboardStatsOverview.php"]
 OOST["OutOfStockItemsTable.php"]
 RMT["RecentMovementsTable.php"]
 end
 subgraph "Domain Models"
-IB["InventoryBalance.php"]
-IM["InventoryMovement.php"]
+ITM["Item.php"]
+IMV["InventoryMovement.php"]
+PBD["ProductionBatch.php"]
+ITR["ItemRequest.php"]
+IBL["InventoryBalance.php"]
 end
 subgraph "Resources"
 IBR["InventoryBalanceResource.php"]
 end
+D --> DSO
 D --> OOST
 D --> RMT
-OOST --> IB
+DSO --> ITM
+DSO --> IMV
+DSO --> PBD
+DSO --> ITR
+OOST --> IBL
 OOST --> IBR
-RMT --> IM
+RMT --> IMV
 ```
 
 **Diagram sources**
 - [Dashboard.php:1-16](file://app/Filament/Pages/Dashboard.php#L1-L16)
+- [DashboardStatsOverview.php:1-48](file://app/Filament/Widgets/DashboardStatsOverview.php#L1-L48)
 - [OutOfStockItemsTable.php:1-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L1-L64)
 - [RecentMovementsTable.php:1-79](file://app/Filament/Widgets/RecentMovementsTable.php#L1-L79)
-- [InventoryBalance.php:1-71](file://app/Models/InventoryBalance.php#L1-L71)
+- [Item.php:1-173](file://app/Models/Item.php#L1-L173)
 - [InventoryMovement.php:1-196](file://app/Models/InventoryMovement.php#L1-L196)
+- [ProductionBatch.php:1-117](file://app/Models/ProductionBatch.php#L1-L117)
+- [ItemRequest.php:1-135](file://app/Models/ItemRequest.php#L1-L135)
+- [InventoryBalance.php:1-71](file://app/Models/InventoryBalance.php#L1-L71)
 - [InventoryBalanceResource.php:1-445](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L1-L445)
 
 **Section sources**
 - [Dashboard.php:1-16](file://app/Filament/Pages/Dashboard.php#L1-L16)
 
 ## Core Components
+- **DashboardStatsOverview**: Real-time metrics widget displaying four key KPIs - total inventory items, daily transactions, active production batches, and pending item requests, each with clickable navigation to relevant resources.
 - **OutOfStockItemsTable**: Displays items with zero or low stock levels, including item details, warehouse information, stock quantities, and stock status badges.
 - **RecentMovementsTable**: Shows the most recent inventory movements with type classification, quantity tracking, and associated batch information.
 - **InventoryBalance**: Model representing stock levels per warehouse-item combination with computed stock status attributes.
 - **InventoryMovement**: Model tracking all inventory changes with type classification, directional indicators, and relationship mappings.
+- **Item**: Core model for inventory items with extensive relationships and business logic.
+- **ProductionBatch**: Model for production batch management with status tracking and completion metrics.
+- **ItemRequest**: Model for item request workflow with approval states and processing tracking.
 - **InventoryBalanceResource**: Provides reusable components like stock status columns and filters used across the application.
 
 Key responsibilities:
+- Real-time KPI calculation and display through stats overview widget
 - Stock monitoring and alerting through out-of-stock detection
 - Movement tracking and visualization with directional indicators
 - Status computation and presentation through computed attributes
 - Reusable UI components through resource methods
 
 **Section sources**
+- [DashboardStatsOverview.php:1-48](file://app/Filament/Widgets/DashboardStatsOverview.php#L1-L48)
 - [OutOfStockItemsTable.php:1-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L1-L64)
 - [RecentMovementsTable.php:1-79](file://app/Filament/Widgets/RecentMovementsTable.php#L1-L79)
-- [InventoryBalance.php:1-71](file://app/Models/InventoryBalance.php#L1-L71)
+- [Item.php:1-173](file://app/Models/Item.php#L1-L173)
 - [InventoryMovement.php:1-196](file://app/Models/InventoryMovement.php#L1-L196)
+- [ProductionBatch.php:1-117](file://app/Models/ProductionBatch.php#L1-L117)
+- [ItemRequest.php:1-135](file://app/Models/ItemRequest.php#L1-L135)
+- [InventoryBalance.php:1-71](file://app/Models/InventoryBalance.php#L1-L71)
 - [InventoryBalanceResource.php:65-80](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L65-L80)
 
 ## Architecture Overview
 The dashboard follows a clean separation between presentation (widgets), domain models, and business logic:
-- Presentation layer: Filament table widgets render inventory data
+- Presentation layer: Filament widgets render both statistical overviews and detailed tables
 - Domain layer: Inventory models provide relationships and computed attributes
 - Business logic: Resource classes encapsulate reusable components and validation
 
@@ -111,23 +139,80 @@ The dashboard follows a clean separation between presentation (widgets), domain 
 sequenceDiagram
 participant User as "User"
 participant Page as "Dashboard.php"
-participant Widget as "Inventory Widgets"
+participant StatsWidget as "DashboardStatsOverview"
+participant TableWidgets as "Inventory Tables"
 participant Model as "Inventory Models"
 User->>Page : Open dashboard
-Page->>Widget : Render inventory widgets
-Widget->>Model : Query stock levels and movements
-Model-->>Widget : Inventory data with computed attributes
-Widget-->>User : Tables showing stock status and movements
+Page->>StatsWidget : Render stats overview
+Page->>TableWidgets : Render inventory tables
+StatsWidget->>Model : Query KPIs (items, transactions, batches, requests)
+TableWidgets->>Model : Query stock levels and movements
+Model-->>StatsWidget : Real-time metrics data
+Model-->>TableWidgets : Inventory data with computed attributes
+StatsWidget-->>User : KPI cards with clickable navigation
+TableWidgets-->>User : Tables showing stock status and movements
 ```
 
 **Diagram sources**
 - [Dashboard.php:1-16](file://app/Filament/Pages/Dashboard.php#L1-L16)
+- [DashboardStatsOverview.php:1-48](file://app/Filament/Widgets/DashboardStatsOverview.php#L1-L48)
 - [OutOfStockItemsTable.php:1-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L1-L64)
 - [RecentMovementsTable.php:1-79](file://app/Filament/Widgets/RecentMovementsTable.php#L1-L79)
-- [InventoryBalance.php:1-71](file://app/Models/InventoryBalance.php#L1-L71)
+- [Item.php:1-173](file://app/Models/Item.php#L1-L173)
 - [InventoryMovement.php:1-196](file://app/Models/InventoryMovement.php#L1-L196)
+- [ProductionBatch.php:1-117](file://app/Models/ProductionBatch.php#L1-L117)
+- [ItemRequest.php:1-135](file://app/Models/ItemRequest.php#L1-L135)
 
 ## Detailed Component Analysis
+
+### DashboardStatsOverview Widget
+**New** - Real-time metrics and KPIs widget providing high-level operational insights.
+
+Purpose:
+- Display critical business metrics at a glance with real-time data
+- Provide quick navigation to detailed views through clickable stat cards
+- Monitor inventory health, transaction volume, production activity, and request pipeline
+
+Key features:
+- **Total Items**: Counts all inventory items with direct navigation to item management
+- **Daily Transactions**: Shows today's inventory movement count with date filtering
+- **Active Batches**: Displays running production batches with status-based filtering
+- **Pending Requests**: Counts item requests in pending or processing states
+
+Data flow:
+- Queries multiple models simultaneously for different KPIs
+- Uses efficient database queries with appropriate filters
+- Integrates with Filament resources for seamless navigation
+
+```mermaid
+flowchart TD
+Start(["Render DashboardStatsOverview"]) --> Query1["Query Item::count()"]
+Start --> Query2["Query InventoryMovement whereDate('occurred_at', today())"]
+Start --> Query3["Query ProductionBatch where('status', 'running')"]
+Start --> Query4["Query ItemRequest whereIn('status', ['pending', 'processing'])"]
+Query1 --> Stat1["Create Stat card with icon and URL"]
+Query2 --> Stat2["Create Stat card with description and URL"]
+Query3 --> Stat3["Create Stat card with color coding"]
+Query4 --> Stat4["Create Stat card with warning color"]
+Stat1 --> Display["Display 4 stat cards in grid layout"]
+Stat2 --> Display
+Stat3 --> Display
+Stat4 --> Display
+```
+
+**Diagram sources**
+- [DashboardStatsOverview.php:23-46](file://app/Filament/Widgets/DashboardStatsOverview.php#L23-L46)
+- [Item.php:1-173](file://app/Models/Item.php#L1-L173)
+- [InventoryMovement.php:1-196](file://app/Models/InventoryMovement.php#L1-L196)
+- [ProductionBatch.php:1-117](file://app/Models/ProductionBatch.php#L1-L117)
+- [ItemRequest.php:1-135](file://app/Models/ItemRequest.php#L1-L135)
+
+**Section sources**
+- [DashboardStatsOverview.php:1-48](file://app/Filament/Widgets/DashboardStatsOverview.php#L1-L48)
+- [Item.php:1-173](file://app/Models/Item.php#L1-L173)
+- [InventoryMovement.php:1-196](file://app/Models/InventoryMovement.php#L1-L196)
+- [ProductionBatch.php:1-117](file://app/Models/ProductionBatch.php#L1-L117)
+- [ItemRequest.php:1-135](file://app/Models/ItemRequest.php#L1-L135)
 
 ### OutOfStockItemsTable Widget
 Purpose:
@@ -295,30 +380,40 @@ Key features:
 
 ## Dependency Analysis
 Component relationships:
-- Widgets depend on inventory models for data and resource classes for reusable components
-- Inventory models define relationships and computed attributes used throughout the system
-- Dashboard page orchestrates widget rendering without direct data dependencies
+- Dashboard page orchestrates all widget rendering
+- Stats overview widget depends on multiple domain models for KPI calculations
+- Table widgets depend on inventory models for data and resource classes for reusable components
+- All widgets leverage Filament's widget system for consistent presentation
 
 ```mermaid
 graph LR
-Dashboard["Dashboard.php"] --> OutOfStockItemsTable["OutOfStockItemsTable.php"]
+Dashboard["Dashboard.php"] --> DashboardStatsOverview["DashboardStatsOverview.php"]
+Dashboard --> OutOfStockItemsTable["OutOfStockItemsTable.php"]
 Dashboard --> RecentMovementsTable["RecentMovementsTable.php"]
+DashboardStatsOverview --> Item["Item.php"]
+DashboardStatsOverview --> InventoryMovement["InventoryMovement.php"]
+DashboardStatsOverview --> ProductionBatch["ProductionBatch.php"]
+DashboardStatsOverview --> ItemRequest["ItemRequest.php"]
 OutOfStockItemsTable --> InventoryBalance["InventoryBalance.php"]
 OutOfStockItemsTable --> InventoryBalanceResource["InventoryBalanceResource.php"]
-RecentMovementsTable --> InventoryMovement["InventoryMovement.php"]
-InventoryBalance --> Item["Item.php"]
+RecentMovementsTable --> InventoryMovement
+InventoryBalance --> Item
 InventoryBalance --> Warehouse["Warehouse.php"]
 InventoryMovement --> Item
 InventoryMovement --> Warehouse
-InventoryMovement --> ProductionBatch["ProductionBatch.php"]
+InventoryMovement --> ProductionBatch
 ```
 
 **Diagram sources**
 - [Dashboard.php:1-16](file://app/Filament/Pages/Dashboard.php#L1-L16)
+- [DashboardStatsOverview.php:1-48](file://app/Filament/Widgets/DashboardStatsOverview.php#L1-L48)
 - [OutOfStockItemsTable.php:1-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L1-L64)
 - [RecentMovementsTable.php:1-79](file://app/Filament/Widgets/RecentMovementsTable.php#L1-L79)
-- [InventoryBalance.php:1-71](file://app/Models/InventoryBalance.php#L1-L71)
+- [Item.php:1-173](file://app/Models/Item.php#L1-L173)
 - [InventoryMovement.php:1-196](file://app/Models/InventoryMovement.php#L1-L196)
+- [ProductionBatch.php:1-117](file://app/Models/ProductionBatch.php#L1-L117)
+- [ItemRequest.php:1-135](file://app/Models/ItemRequest.php#L1-L135)
+- [InventoryBalance.php:1-71](file://app/Models/InventoryBalance.php#L1-L71)
 - [InventoryBalanceResource.php:1-445](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L1-L445)
 
 **Section sources**
@@ -331,6 +426,9 @@ InventoryMovement --> ProductionBatch["ProductionBatch.php"]
 - Leverage database-level filtering and sorting where possible
 - Use computed attributes sparingly as they execute on every record access
 - Consider caching frequently accessed inventory data if performance becomes an issue
+- **For stats widgets**: Optimize KPI queries by using efficient counting methods and avoiding unnecessary joins
+- **Real-time metrics**: Ensure database indexes exist on frequently queried columns (occurred_at, status, etc.)
+- **Concurrent access**: Handle potential race conditions when multiple users access dashboard simultaneously
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -338,53 +436,68 @@ Common issues and resolutions:
 - **Incorrect movement classification**: Verify InventoryMovement::incomingTypes() and outgoingTypes() arrays match expected movement types.
 - **Locale formatting issues**: Confirm app()->getLocale() is set correctly and Number::format is used consistently for quantity display.
 - **Relationship loading problems**: Check that eager loading is properly configured in widget queries to avoid N+1 query issues.
+- **Stats widget performance**: If KPI calculations are slow, verify database indexes on frequently filtered columns and consider query optimization.
+- **Navigation links not working**: Ensure Filament resource URLs are correctly configured and accessible to authenticated users.
 
 **Section sources**
 - [InventoryBalance.php:47-64](file://app/Models/InventoryBalance.php#L47-L64)
 - [InventoryMovement.php:143-174](file://app/Models/InventoryMovement.php#L143-L174)
 
 ## Conclusion
-The dashboard widgets provide comprehensive inventory management capabilities through focused table displays. The architecture separates concerns between presentation (widgets), domain data (models), and reusable components (resources). With careful use of eager loading, computed attributes, and clear model relationships, the system remains maintainable and performant while providing essential inventory visibility and control.
+The dashboard widgets provide comprehensive inventory management capabilities through a combination of real-time statistical overviews and detailed table displays. The architecture separates concerns between presentation (widgets), domain data (models), and reusable components (resources). With the addition of the DashboardStatsOverview widget, users now have immediate access to critical KPIs alongside detailed operational data. The system maintains maintainability and performance through careful use of eager loading, computed attributes, clear model relationships, and optimized KPI calculations.
 
 ## Appendices
 
 ### Widget Lifecycle Methods Reference
-- TableWidget:
-  - table(Table $table): Defines query, columns, filters, actions, sorting, and pagination settings.
-  - $sort: Controls widget ordering within the dashboard layout.
-  - $columnSpan: Determines horizontal space allocation in grid layouts.
+- **StatsOverviewWidget** (DashboardStatsOverview):
+  - getStats(): Returns array of Stat objects with labels, icons, colors, descriptions, and URLs
+  - $sort: Controls widget ordering within the dashboard layout
+- **TableWidget** (OutOfStockItemsTable, RecentMovementsTable):
+  - table(Table $table): Defines query, columns, filters, actions, sorting, and pagination settings
+  - $sort: Controls widget ordering within the dashboard layout
+  - $columnSpan: Determines horizontal space allocation in grid layouts
 
 **Section sources**
+- [DashboardStatsOverview.php:18-46](file://app/Filament/Widgets/DashboardStatsOverview.php#L18-L46)
 - [OutOfStockItemsTable.php:13-17](file://app/Filament/Widgets/OutOfStockItemsTable.php#L13-L17)
 - [RecentMovementsTable.php:13-17](file://app/Filament/Widgets/RecentMovementsTable.php#L13-L17)
 
-### Creating Custom Inventory Widgets
-Steps:
-- Extend Filament's TableWidget base class for inventory-related displays.
-- Implement the table() method to define queries, columns, and interactions.
-- Use inventory models (InventoryBalance, InventoryMovement) for data access.
-- Leverage resource classes for reusable components like stock status columns.
-- Configure layout properties ($sort, $columnSpan) and interactive behaviors.
+### Creating Custom Dashboard Widgets
+Steps for StatsOverviewWidget:
+- Extend Filament's StatsOverviewWidget base class for statistical displays
+- Implement the getStats() method to return array of Stat objects
+- Configure each stat with label, icon, color, description, and optional URL navigation
+- Set widget sort order and positioning properties
+
+Steps for TableWidget:
+- Extend Filament's TableWidget base class for inventory-related displays
+- Implement the table() method to define queries, columns, and interactions
+- Use inventory models (InventoryBalance, InventoryMovement) for data access
+- Leverage resource classes for reusable components like stock status columns
+- Configure layout properties ($sort, $columnSpan) and interactive behaviors
 
 Example references:
+- Stats overview pattern: [DashboardStatsOverview.php:1-48](file://app/Filament/Widgets/DashboardStatsOverview.php#L1-L48)
 - Out-of-stock monitoring pattern: [OutOfStockItemsTable.php:1-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L1-L64)
 - Movement tracking pattern: [RecentMovementsTable.php:1-79](file://app/Filament/Widgets/RecentMovementsTable.php#L1-L79)
 - Stock status component usage: [InventoryBalanceResource.php:65-80](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L65-L80)
 
 **Section sources**
+- [DashboardStatsOverview.php:1-48](file://app/Filament/Widgets/DashboardStatsOverview.php#L1-L48)
 - [OutOfStockItemsTable.php:1-64](file://app/Filament/Widgets/OutOfStockItemsTable.php#L1-L64)
 - [RecentMovementsTable.php:1-79](file://app/Filament/Widgets/RecentMovementsTable.php#L1-L79)
 - [InventoryBalanceResource.php:65-80](file://app/Filament/Resources/InventoryBalances/InventoryBalanceResource.php#L65-L80)
 
 ### Integrating External Data Sources
 Approach:
-- Create service classes to fetch and normalize external inventory data.
-- Map external data to internal inventory models and relationships.
-- Expose new datasets via custom widgets or extend existing ones.
-- Apply caching at the service layer to mitigate external API latency.
+- Create service classes to fetch and normalize external inventory data
+- Map external data to internal inventory models and relationships
+- Expose new datasets via custom widgets or extend existing ones
+- Apply caching at the service layer to mitigate external API latency
 
 Guidance:
-- Keep external integrations isolated in services to preserve widget simplicity.
-- Validate and sanitize external payloads before processing.
-- Handle errors gracefully and fallback to cached or default values.
-- Maintain data consistency through proper transaction handling.
+- Keep external integrations isolated in services to preserve widget simplicity
+- Validate and sanitize external payloads before processing
+- Handle errors gracefully and fallback to cached or default values
+- Maintain data consistency through proper transaction handling
+- For real-time metrics: Implement background jobs or queues for expensive KPI calculations

@@ -24,6 +24,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontFamily;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -121,7 +122,8 @@ class ProductionBatchResource extends Resource
                 TextColumn::make('batch_code')
                     ->label('Kode batch')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->fontFamily(FontFamily::Mono),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -134,7 +136,8 @@ class ProductionBatchResource extends Resource
                     }),
                 TextColumn::make('planned_quantity')
                     ->label('Rencana hasil')
-                    ->numeric(maxDecimalPlaces: 3),
+                    ->numeric(maxDecimalPlaces: 3)
+                    ->alignEnd(),
                 TextColumn::make('materialWarehouse.name')
                     ->label('Gudang material')
                     ->placeholder('—')
@@ -161,9 +164,12 @@ class ProductionBatchResource extends Resource
                     ->relationship('materialWarehouse', 'name'),
             ])
             ->recordActions([
-                ViewAction::make(),
-                EditAction::make(),
-                DeleteAction::make(),
+                ViewAction::make()
+                    ->iconButton(),
+                EditAction::make()
+                    ->iconButton(),
+                DeleteAction::make()
+                    ->iconButton(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

@@ -27,6 +27,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontFamily;
 use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -150,7 +151,8 @@ class ItemRequestResource extends Resource
                 TextColumn::make('code')
                     ->label('Nomor')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->fontFamily(FontFamily::Mono),
                 TextColumn::make('requester_name')
                     ->label('Pemohon')
                     ->searchable()
@@ -161,7 +163,8 @@ class ItemRequestResource extends Resource
                 TextColumn::make('lines_count')
                     ->label('Jumlah barang')
                     ->counts('lines')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignEnd(),
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -209,11 +212,12 @@ class ItemRequestResource extends Resource
                     ->relationship('warehouse', 'name'),
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()
+                    ->iconButton(),
                 self::approveAction()
-                    ->labeledFrom('md'),
+                    ->iconButton(),
                 self::rejectAction()
-                    ->labeledFrom('md'),
+                    ->iconButton(),
             ])
             ->defaultSort('created_at', 'desc')
             ->infinite(perPage: 50);

@@ -11,6 +11,7 @@ use App\Models\InventoryMovement;
 use App\Models\Item;
 use App\Models\ItemComponent;
 use App\Models\ProductionBatch;
+use App\Models\Vendor;
 use App\Models\Warehouse;
 use App\Services\ExternalBarangApiService;
 use App\Services\ExternalBarangSyncService;
@@ -32,6 +33,7 @@ use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontFamily;
 use Filament\Support\Exceptions\Halt;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -90,6 +92,18 @@ class InventoryMovementResource extends Resource
                             ->searchable()
                             ->preload()
                             ->live(),
+                        Select::make('vendor_id')
+                            ->label('Vendor')
+                            ->relationship(
+                                'vendor',
+                                'name',
+                                modifyQueryUsing: fn (Builder $query): Builder => $query->where('is_active', true),
+                            )
+                            ->getOptionLabelFromRecordUsing(fn (Vendor $record): string => "{$record->code} — {$record->name}")
+                            ->searchable(['code', 'name'])
+                            ->preload()
+                            ->visible(fn (Get $get): bool => $get('type') === InventoryMovement::TYPE_IN_PURCHASE)
+                            ->helperText('Pemasok barang untuk transaksi pembelian.'),
                         Select::make('destination_warehouse_id')
                             ->label('Gudang tujuan')
                             ->options(fn (): array => Warehouse::query()
@@ -304,7 +318,8 @@ class InventoryMovementResource extends Resource
                 TextColumn::make('item.item_code')
                     ->label('Kode')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->fontFamily(FontFamily::Mono),
                 TextColumn::make('item.item_name')
                     ->label('Barang')
                     ->searchable()
@@ -318,13 +333,20 @@ class InventoryMovementResource extends Resource
                     ->state(fn (InventoryMovement $record): ?string => $record->isIncoming()
                         ? Number::format((float) $record->quantity, maxPrecision: 3, locale: app()->getLocale())
                         : null)
-                    ->color('success'),
+                    ->color('success')
+                    ->alignEnd(),
                 TextColumn::make('quantity_out')
                     ->label('Keluar')
                     ->state(fn (InventoryMovement $record): ?string => $record->isIncoming()
                         ? null
                         : Number::format((float) $record->quantity, maxPrecision: 3, locale: app()->getLocale()))
-                    ->color('danger'),
+                    ->color('danger')
+                    ->alignEnd(),
+                TextColumn::make('vendor.name')
+                    ->label('Vendor')
+                    ->placeholder('—')
+                    ->searchable()
+                    ->toggleable(),
                 TextColumn::make('productionBatch.batch_code')
                     ->label('Batch')
                     ->placeholder('—')
@@ -355,6 +377,11 @@ class InventoryMovementResource extends Resource
                     ->relationship('item', 'item_name')
                     ->searchable()
                     ->preload(),
+                SelectFilter::make('vendor_id')
+                    ->label('Vendor')
+                    ->relationship('vendor', 'name')
+                    ->searchable()
+                    ->preload(),
                 SelectFilter::make('production_batch_id')
                     ->label('Batch produksi')
                     ->relationship('productionBatch', 'batch_code')
@@ -363,6 +390,7 @@ class InventoryMovementResource extends Resource
             ])
             ->recordActions([
                 DeleteAction::make()
+                    ->iconButton()
                     ->label('Hapus')
                     ->modalHeading('Hapus transaksi?')
                     ->modalDescription('Saldo stok akan dikembalikan seperti sebelum transaksi ini dicatat. Bila transaksi bagian dari pindah gudang, kedua baris (keluar & masuk) ikut terhapus.')

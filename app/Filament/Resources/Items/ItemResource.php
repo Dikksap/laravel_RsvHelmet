@@ -24,6 +24,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ExportBulkAction;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -33,7 +34,9 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontFamily;
 use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
@@ -84,6 +87,16 @@ class ItemResource extends Resource
                         Textarea::make('description')
                             ->label('Deskripsi')
                             ->rows(3)
+                            ->columnSpanFull(),
+                        FileUpload::make('image_path')
+                            ->label('Gambar barang')
+                            ->image()
+                            ->imageEditor()
+                            ->disk('public')
+                            ->directory('items')
+                            ->visibility('public')
+                            ->maxSize(10240)
+                            ->helperText('Format JPG, PNG, atau WebP. Maksimal 10 MB.')
                             ->columnSpanFull(),
                         Select::make('item_type_id')
                             ->label('Jenis barang')
@@ -206,10 +219,17 @@ class ItemResource extends Resource
     {
         return $table
             ->columns([
+                ImageColumn::make('image_path')
+                    ->label('Gambar')
+                    ->disk('public')
+                    ->visibility('public')
+                    ->square()
+                    ->size(40),
                 TextColumn::make('item_code')
                     ->label('Kode')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->fontFamily(FontFamily::Mono),
                 TextColumn::make('item_name')
                     ->label('Nama')
                     ->searchable()
@@ -235,7 +255,8 @@ class ItemResource extends Resource
                 TextColumn::make('base_price')
                     ->label('Harga dasar')
                     ->formatStateUsing(fn ($state): string => number_format((float) $state, 2))
-                    ->sortable(),
+                    ->sortable()
+                    ->alignEnd(),
                 IconColumn::make('has_variants')
                     ->label('Punya varian')
                     ->boolean()
@@ -270,10 +291,13 @@ class ItemResource extends Resource
                 Action::make('composition')
                     ->label('Komposisi')
                     ->icon('heroicon-o-squares-2x2')
+                    ->iconButton()
                     ->url(fn (Item $record): string => BomBuilder::getUrl(['item' => $record->getKey()]))
                     ->visible(fn (Item $record): bool => $record->is_stockable && ! $record->has_variants),
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->iconButton(),
+                DeleteAction::make()
+                    ->iconButton(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

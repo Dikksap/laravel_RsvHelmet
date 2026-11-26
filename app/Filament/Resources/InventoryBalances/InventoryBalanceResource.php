@@ -28,6 +28,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontFamily;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -182,7 +183,8 @@ class InventoryBalanceResource extends Resource
                 TextColumn::make('item.item_code')
                     ->label('Kode')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->fontFamily(FontFamily::Mono),
                 TextColumn::make('item.item_name')
                     ->label('Barang')
                     ->searchable()
@@ -195,11 +197,13 @@ class InventoryBalanceResource extends Resource
                 TextColumn::make('quantity_on_hand')
                     ->label('Stok')
                     ->numeric(maxDecimalPlaces: 3)
-                    ->sortable(),
+                    ->sortable()
+                    ->alignEnd(),
                 TextColumn::make('minimum_quantity')
                     ->label('Stok minimum')
                     ->numeric(maxDecimalPlaces: 3)
-                    ->sortable(),
+                    ->sortable()
+                    ->alignEnd(),
                 self::stockStatusColumn(),
                 TextColumn::make('last_counted_at')
                     ->label('Terakhir dihitung')
@@ -214,8 +218,10 @@ class InventoryBalanceResource extends Resource
                 self::stockStatusFilter(),
             ])
             ->recordActions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->iconButton(),
+                DeleteAction::make()
+                    ->iconButton(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

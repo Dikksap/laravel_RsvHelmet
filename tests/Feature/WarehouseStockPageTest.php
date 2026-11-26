@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Filament\Pages\WarehouseStock;
 use App\Filament\Pages\WarehouseStockDetail;
 use App\Filament\Resources\InventoryBalances\Pages\CreateInventoryBalance;
+use App\Models\Division;
 use App\Models\InventoryBalance;
 use App\Models\Item;
 use App\Models\User;
@@ -107,6 +108,64 @@ class WarehouseStockPageTest extends TestCase
             ->filterTable('stock_status', 'low')
             ->assertCanSeeTableRecords([$low])
             ->assertCanNotSeeTableRecords([$safe, $out]);
+    }
+
+    public function test_warehouse_stock_detail_shows_item_division(): void
+    {
+        $warehouse = Warehouse::factory()->create();
+        $division = Division::factory()->create(['name' => 'Divisi Produksi']);
+
+        $balance = InventoryBalance::factory()->create([
+            'warehouse_id' => $warehouse->getKey(),
+            'item_id' => Item::factory()->withDivision($division)->create()->getKey(),
+            'quantity_on_hand' => 10,
+        ]);
+
+        Livewire::test(WarehouseStockDetail::class, ['warehouse' => $warehouse])
+            ->assertTableColumnExists('item.division.name')
+            ->assertTableColumnStateSet('item.division.name', 'Divisi Produksi', $balance)
+            ->assertSee('Divisi Produksi');
+    }
+
+    public function test_warehouse_stock_detail_filters_by_division_within_the_selected_warehouse(): void
+    {
+        $warehouse = Warehouse::factory()->create();
+        $division = Division::factory()->create();
+        $otherDivision = Division::factory()->create();
+        $matchingItem = Item::factory()->withDivision($division)->create();
+
+        $matching = InventoryBalance::factory()->create([
+            'warehouse_id' => $warehouse->getKey(),
+            'item_id' => $matchingItem->getKey(),
+            'quantity_on_hand' => 5,
+            'minimum_quantity' => 10,
+        ]);
+        $nonMatching = InventoryBalance::factory()->create([
+            'warehouse_id' => $warehouse->getKey(),
+            'item_id' => Item::factory()->withDivision($otherDivision)->create()->getKey(),
+            'quantity_on_hand' => 5,
+            'minimum_quantity' => 10,
+        ]);
+        $withoutDivision = InventoryBalance::factory()->create([
+            'warehouse_id' => $warehouse->getKey(),
+            'item_id' => Item::factory()->create()->getKey(),
+        ]);
+        $otherWarehouse = InventoryBalance::factory()->create([
+            'item_id' => $matchingItem->getKey(),
+        ]);
+
+        Livewire::test(WarehouseStockDetail::class, ['warehouse' => $warehouse])
+            ->assertTableFilterExists('division_id')
+            ->filterTable('division_id', $division->getKey())
+            ->assertCanSeeTableRecords([$matching])
+            ->assertCanNotSeeTableRecords([$nonMatching, $withoutDivision, $otherWarehouse])
+            ->filterTable('stock_status', 'low')
+            ->assertCanSeeTableRecords([$matching])
+            ->assertCanNotSeeTableRecords([$nonMatching, $withoutDivision, $otherWarehouse])
+            ->filterTable('stock_status', null)
+            ->filterTable('division_id', null)
+            ->assertCanSeeTableRecords([$matching, $nonMatching, $withoutDivision])
+            ->assertCanNotSeeTableRecords([$otherWarehouse]);
     }
 
     public function test_warehouse_stock_detail_summarises_the_selected_warehouse(): void

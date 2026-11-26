@@ -17,6 +17,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontFamily;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
@@ -72,7 +73,8 @@ class WarehouseResource extends Resource
                 TextColumn::make('code')
                     ->label('Kode')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->fontFamily(FontFamily::Mono),
                 TextColumn::make('name')
                     ->label('Nama')
                     ->searchable()
@@ -84,7 +86,8 @@ class WarehouseResource extends Resource
                 TextColumn::make('balances_count')
                     ->label('Jumlah saldo')
                     ->counts('balances')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignEnd(),
                 IconColumn::make('is_active')
                     ->label('Aktif')
                     ->boolean()
@@ -100,8 +103,10 @@ class WarehouseResource extends Resource
                     ->label('Aktif'),
             ])
             ->recordActions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->iconButton(),
+                DeleteAction::make()
+                    ->iconButton(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

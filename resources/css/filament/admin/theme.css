@@ -244,6 +244,209 @@
     background-color: rgb(255 255 255 / 0.08);
 }
 
+/* Tabel Filament */
+
+.fi-ta-ctn {
+    border-radius: 0.75rem;
+    box-shadow:
+        0 1px 2px rgb(15 23 42 / 0.05),
+        0 20px 44px -40px rgb(15 23 42 / 0.55);
+}
+
+.dark .fi-ta-ctn {
+    box-shadow:
+        0 1px 2px rgb(0 0 0 / 0.4),
+        0 20px 44px -40px rgb(0 0 0 / 0.9);
+}
+
+.fi-ta .fi-ta-header-toolbar {
+    gap: 0.75rem;
+    padding-block: 0.625rem;
+}
+
+.fi-ta .fi-ta-header-toolbar > * {
+    gap-x: 0.75rem;
+}
+
+.fi-ta .fi-ta-header {
+    padding-block: 0.875rem;
+}
+
+.fi-ta .fi-ta-header-heading {
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+.fi-ta-ctn .fi-pagination {
+    padding-block: 0.5rem;
+}
+
+/* Header kolom: sticky, label kecil huruf kapital */
+
+.fi-ta-table > thead > tr > th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding-block: 0.5rem;
+    border-bottom: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+    color: #64748b;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.dark .fi-ta-table > thead > tr > th {
+    border-bottom-color: rgb(255 255 255 / 0.08);
+    background-color: #16202f;
+    color: #94a3b8;
+}
+
+.fi-ta-table > thead > tr > th .fi-ta-header-cell-sort-btn {
+    gap: 0.25rem;
+    color: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+}
+
+.fi-ta-table > thead > tr > th .fi-ta-header-cell-sort-btn .fi-icon {
+    width: 0.75rem;
+    height: 0.75rem;
+    opacity: 0.35;
+    transition: opacity 120ms ease;
+}
+
+.fi-ta-table > thead > tr > th .fi-ta-header-cell-sort-btn:hover .fi-icon,
+.fi-ta-table > thead > tr > th.fi-ta-header-cell-sorted .fi-icon {
+    opacity: 1;
+}
+
+.fi-ta-table > thead > tr > th.fi-ta-header-cell-sorted {
+    color: #b45309;
+}
+
+.dark .fi-ta-table > thead > tr > th.fi-ta-header-cell-sorted {
+    color: #fbbf24;
+}
+
+.dark .fi-ta-table > thead > tr > th.fi-ta-header-cell-sorted .fi-icon {
+    color: #fbbf24;
+}
+
+/* Baris data: rapat dan mudah dipindai */
+
+.fi-ta-table .fi-ta-text:not(.fi-inline) {
+    padding-block: 0.5625rem;
+}
+
+.fi-ta-table .fi-ta-text-item,
+.fi-ta-table .fi-ta-placeholder {
+    font-size: 0.8125rem;
+    line-height: 1.25rem;
+}
+
+.fi-ta-table .fi-ta-text-description {
+    font-size: 0.75rem;
+    line-height: 1.125rem;
+}
+
+.fi-ta-table .fi-ta-cell:has(.fi-ta-actions) {
+    padding-block: 0.375rem;
+}
+
+.fi-ta-table > tbody > tr.fi-ta-row {
+    border-color: rgb(15 23 42 / 0.055);
+}
+
+.dark .fi-ta-table > tbody > tr.fi-ta-row {
+    border-color: rgb(255 255 255 / 0.06);
+}
+
+@media (hover: hover) {
+    .fi-ta-table > tbody > tr.fi-ta-row:hover {
+        background-color: #f8fafc;
+    }
+
+    .dark .fi-ta-table > tbody > tr.fi-ta-row:hover {
+        background-color: rgb(255 255 255 / 0.035);
+    }
+}
+
+/* Kolom pertama jadi jangkar visual */
+
+.fi-ta-cell:first-child .fi-ta-text-item:not(.fi-ta-text-has-badges):not(.fi-color) {
+    color: #0f172a;
+    font-weight: 500;
+}
+
+.dark .fi-ta-cell:first-child .fi-ta-text-item:not(.fi-ta-text-has-badges):not(.fi-color) {
+    color: #f8fafc;
+}
+
+.fi-ta-table > tbody > tr.fi-ta-row.fi-selected {
+    background-color: rgb(245 158 11 / 0.06);
+}
+
+.dark .fi-ta-table > tbody > tr.fi-ta-row.fi-selected {
+    background-color: rgb(245 158 11 / 0.08);
+}
+
+.fi-ta-table > tfoot > tr.fi-ta-summary-row .fi-ta-text {
+    font-weight: 600;
+}
+
+/* Aksi baris dan scrollbar */
+
+.fi-ta-cell > .fi-ta-actions {
+    gap: 0.25rem;
+}
+
+.fi-ta-actions .fi-icon-btn {
+    border-radius: 0.5rem;
+}
+
+.fi-ta-actions .fi-icon-btn:hover,
+.fi-ta-actions .fi-icon-btn:focus-visible {
+    background-color: #eef2f7;
+}
+
+.dark .fi-ta-actions .fi-icon-btn:hover,
+.dark .fi-ta-actions .fi-icon-btn:focus-visible {
+    background-color: rgb(255 255 255 / 0.08);
+}
+
+.fi-ta .fi-ta-content-ctn {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+}
+
+.dark .fi-ta .fi-ta-content-ctn {
+    scrollbar-color: #475569 transparent;
+}
+
+.fi-ta .fi-ta-content-ctn::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.fi-ta .fi-ta-content-ctn::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 999px;
+    background-color: #cbd5e1;
+    background-clip: content-box;
+}
+
+.dark .fi-ta .fi-ta-content-ctn::-webkit-scrollbar-thumb {
+    background-color: #475569;
+}
+
+.dark .fi-ta .fi-ta-content-ctn::-webkit-scrollbar-thumb:hover {
+    background-color: #64748b;
+}
+
 /* Halaman auth: login dan reset kata sandi */
 
 .fi-simple-layout {

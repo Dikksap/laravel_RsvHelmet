@@ -20,6 +20,7 @@ use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontFamily;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TernaryFilter;
@@ -166,20 +167,23 @@ class ExternalItemMappingResource extends Resource
                     ->label('Kode Varian')
                     ->searchable()
                     ->sortable()
-                    ->placeholder('-'),
+                    ->placeholder('—')
+                    ->fontFamily(FontFamily::Mono),
                 TextColumn::make('external_variant_id')
                     ->label('ID Varian')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignEnd()
+                    ->fontFamily(FontFamily::Mono),
                 TextColumn::make('external_product_name')
                     ->label('Produk')
                     ->searchable()
-                    ->placeholder('-'),
+                    ->placeholder('—'),
                 TextColumn::make('external_color_name')
                     ->label('Warna')
-                    ->placeholder('-'),
+                    ->placeholder('—'),
                 TextColumn::make('external_size_name')
                     ->label('Ukuran')
-                    ->placeholder('-'),
+                    ->placeholder('—'),
                 TextColumn::make('item.item_name')
                     ->label('Barang RSV Internal')
                     ->searchable()
@@ -188,7 +192,8 @@ class ExternalItemMappingResource extends Resource
                 TextColumn::make('synced_barangs_count')
                     ->label('Unit Masuk')
                     ->counts('syncedBarangs')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignEnd(),
                 IconColumn::make('is_active')
                     ->label('Aktif')
                     ->boolean()
@@ -204,8 +209,10 @@ class ExternalItemMappingResource extends Resource
                     ->label('Status Aktif'),
             ])
             ->actions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->iconButton(),
+                DeleteAction::make()
+                    ->iconButton(),
             ])
             ->bulkActions([
                 DeleteBulkAction::make(),

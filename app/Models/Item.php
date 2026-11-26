@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'barcode',
     'item_name',
     'description',
+    'image_path',
     'item_type_id',
     'category_id',
     'brand_id',

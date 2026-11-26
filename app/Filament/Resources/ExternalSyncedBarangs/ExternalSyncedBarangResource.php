@@ -9,6 +9,8 @@ use App\Models\Warehouse;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontFamily;
+use Filament\Support\Enums\FontWeight;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -45,7 +47,8 @@ class ExternalSyncedBarangResource extends Resource
                     ->label('Kode Seri Unit')
                     ->searchable()
                     ->copyable()
-                    ->weight('bold'),
+                    ->fontFamily(FontFamily::Mono)
+                    ->weight(FontWeight::Medium),
                 TextColumn::make('item.item_name')
                     ->label('Barang RSV')
                     ->searchable()
@@ -53,13 +56,13 @@ class ExternalSyncedBarangResource extends Resource
                     ->wrap(),
                 TextColumn::make('mapping.external_variant_code')
                     ->label('Kode Varian')
-                    ->placeholder('-'),
+                    ->placeholder('—'),
                 TextColumn::make('warehouse.name')
                     ->label('Gudang Penerima')
                     ->sortable(),
                 TextColumn::make('productionBatch.batch_code')
                     ->label('Batch Produksi')
-                    ->placeholder('-')
+                    ->placeholder('—')
                     ->toggleable(),
                 TextColumn::make('status')
                     ->label('Status API')
@@ -75,14 +78,15 @@ class ExternalSyncedBarangResource extends Resource
                     ->label('Tgl Produksi')
                     ->dateTime('d M Y H:i')
                     ->sortable()
-                    ->placeholder('-'),
+                    ->placeholder('—'),
                 TextColumn::make('synced_at')
                     ->label('Tgl Masuk Stok')
                     ->dateTime('d M Y H:i')
                     ->sortable(),
                 TextColumn::make('movement.id')
                     ->label('ID Mutasi')
-                    ->formatStateUsing(fn ($state): string => filled($state) ? "#{$state}" : '-')
+                    ->formatStateUsing(fn ($state): string => filled($state) ? "#{$state}" : '—')
+                    ->fontFamily(FontFamily::Mono)
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->defaultSort('synced_at', 'desc')

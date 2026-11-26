@@ -17,6 +17,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\FontFamily;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
@@ -105,7 +106,8 @@ class StockOpnameResource extends Resource
                 TextColumn::make('code')
                     ->label('Kode')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->fontFamily(FontFamily::Mono),
                 TextColumn::make('warehouse.name')
                     ->label('Gudang')
                     ->searchable()
@@ -120,11 +122,13 @@ class StockOpnameResource extends Resource
                     ->state(fn (StockOpname $record): string => ((int) $record->counted_lines_count)
                         .' / '.((int) $record->lines_count))
                     ->badge()
-                    ->color('info'),
+                    ->color('info')
+                    ->alignEnd(),
                 TextColumn::make('difference_lines_count')
                     ->label('Berselisih')
                     ->badge()
-                    ->color(fn (int $state): string => $state > 0 ? 'warning' : 'success'),
+                    ->color(fn (int $state): string => $state > 0 ? 'warning' : 'success')
+                    ->alignEnd(),
                 TextColumn::make('creator.name')
                     ->label('Dibuat oleh')
                     ->placeholder('—')
@@ -166,8 +170,10 @@ class StockOpnameResource extends Resource
                         )),
             ])
             ->recordActions([
-                ViewAction::make(),
+                ViewAction::make()
+                    ->iconButton(),
                 DeleteAction::make()
+                    ->iconButton()
                     ->visible(fn (StockOpname $record): bool => $record->isDraft())
                     ->modalDescription('Dokumen draft beserta seluruh baris hitung fisiknya akan dihapus.'),
             ])

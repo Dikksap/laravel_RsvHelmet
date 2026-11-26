@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Resources\InventoryBalances\InventoryBalanceResource;
+use App\Models\Division;
 use App\Models\InventoryBalance;
 use App\Models\Warehouse;
 use Filament\Actions\Action;
@@ -12,8 +13,10 @@ use Filament\Panel;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Database\Eloquent\Builder;
 use UnitEnum;
 
 class WarehouseStockDetail extends Page implements HasTable
@@ -94,7 +97,7 @@ class WarehouseStockDetail extends Page implements HasTable
             ->query(
                 InventoryBalance::query()
                     ->where('warehouse_id', $this->warehouse->getKey())
-                    ->with(['item.category'])
+                    ->with(['item.category', 'item.division'])
             )
             ->columns([
                 TextColumn::make('item.item_code')
@@ -106,6 +109,11 @@ class WarehouseStockDetail extends Page implements HasTable
                     ->searchable()
                     ->sortable()
                     ->wrap(),
+                TextColumn::make('item.division.name')
+                    ->label('Divisi')
+                    ->placeholder('—')
+                    ->sortable()
+                    ->toggleable(),
                 TextColumn::make('item.category.name')
                     ->label('Kategori')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -125,6 +133,20 @@ class WarehouseStockDetail extends Page implements HasTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                SelectFilter::make('division_id')
+                    ->label('Divisi')
+                    ->options(fn (): array => Division::query()
+                        ->orderBy('name')
+                        ->pluck('name', 'id')
+                        ->all())
+                    ->searchable()
+                    ->query(fn (Builder $query, array $data): Builder => $query->when(
+                        filled($data['value'] ?? null),
+                        fn (Builder $query): Builder => $query->whereHas(
+                            'item',
+                            fn (Builder $query): Builder => $query->where('division_id', $data['value']),
+                        ),
+                    )),
                 InventoryBalanceResource::stockStatusFilter(),
             ])
             ->recordActions([

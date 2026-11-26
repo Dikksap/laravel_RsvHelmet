@@ -65,7 +65,8 @@ class BrandResource extends Resource
                 TextColumn::make('items_count')
                     ->label('Jumlah barang')
                     ->counts('items')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignEnd(),
                 IconColumn::make('is_active')
                     ->label('Aktif')
                     ->boolean()
@@ -81,8 +82,10 @@ class BrandResource extends Resource
                     ->label('Aktif'),
             ])
             ->recordActions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->iconButton(),
+                DeleteAction::make()
+                    ->iconButton(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

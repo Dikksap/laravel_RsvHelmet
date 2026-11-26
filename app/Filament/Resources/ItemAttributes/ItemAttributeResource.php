@@ -76,7 +76,8 @@ class ItemAttributeResource extends Resource
                 TextColumn::make('values_count')
                     ->label('Jumlah nilai')
                     ->counts('values')
-                    ->sortable(),
+                    ->sortable()
+                    ->alignEnd(),
                 IconColumn::make('is_active')
                     ->label('Aktif')
                     ->boolean()
@@ -92,8 +93,10 @@ class ItemAttributeResource extends Resource
                     ->label('Aktif'),
             ])
             ->recordActions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()
+                    ->iconButton(),
+                DeleteAction::make()
+                    ->iconButton(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

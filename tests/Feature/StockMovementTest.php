@@ -15,6 +15,7 @@ use App\Models\ItemComponent;
 use App\Models\ProductionBatch;
 use App\Models\ProductionBatchItem;
 use App\Models\User;
+use App\Models\Vendor;
 use App\Models\Warehouse;
 use App\Services\BatchRequirementService;
 use App\Services\ExternalBarangSyncService;
@@ -178,6 +179,114 @@ class StockMovementTest extends TestCase
         ]);
 
         $this->assertSame(75.0, (float) $this->balanceOf($item, $warehouse)->quantity_on_hand);
+    }
+
+    public function test_purchase_transaction_can_be_created_with_a_vendor(): void
+    {
+        $warehouse = Warehouse::factory()->create();
+        $item = Item::factory()->create();
+        $vendor = Vendor::factory()->create();
+
+        Livewire::test(CreateInventoryMovement::class)
+            ->fillForm([
+                'type' => InventoryMovement::TYPE_IN_PURCHASE,
+                'warehouse_id' => $warehouse->getKey(),
+                'item_id' => $item->getKey(),
+                'vendor_id' => $vendor->getKey(),
+                'quantity' => 25,
+                'occurred_at' => now(),
+            ])
+            ->assertFormFieldVisible('vendor_id')
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('inventory_movements', [
+            'type' => InventoryMovement::TYPE_IN_PURCHASE,
+            'item_id' => $item->getKey(),
+            'warehouse_id' => $warehouse->getKey(),
+            'vendor_id' => $vendor->getKey(),
+        ]);
+        $this->assertSame(25.0, (float) $this->balanceOf($item, $warehouse)->quantity_on_hand);
+    }
+
+    public function test_stock_movement_service_preserves_the_purchase_vendor(): void
+    {
+        $warehouse = Warehouse::factory()->create();
+        $item = Item::factory()->create();
+        $vendor = Vendor::factory()->create();
+
+        $movement = app(StockMovementService::class)->record([
+            'type' => InventoryMovement::TYPE_IN_PURCHASE,
+            'warehouse_id' => $warehouse->getKey(),
+            'item_id' => $item->getKey(),
+            'vendor_id' => $vendor->getKey(),
+            'quantity' => 10,
+        ]);
+
+        $this->assertTrue($movement->fresh()->vendor->is($vendor));
+        $this->assertTrue($vendor->inventoryMovements()->sole()->is($movement));
+    }
+
+    public function test_inactive_vendor_cannot_be_selected_for_a_new_purchase(): void
+    {
+        $warehouse = Warehouse::factory()->create();
+        $item = Item::factory()->create();
+        $vendor = Vendor::factory()->create(['is_active' => false]);
+
+        Livewire::test(CreateInventoryMovement::class)
+            ->fillForm([
+                'type' => InventoryMovement::TYPE_IN_PURCHASE,
+                'warehouse_id' => $warehouse->getKey(),
+                'item_id' => $item->getKey(),
+                'vendor_id' => $vendor->getKey(),
+                'quantity' => 10,
+                'occurred_at' => now(),
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['vendor_id']);
+
+        $this->assertDatabaseCount('inventory_movements', 0);
+        $this->assertDatabaseCount('inventory_balances', 0);
+    }
+
+    public function test_changing_transaction_type_does_not_save_a_hidden_vendor(): void
+    {
+        $warehouse = Warehouse::factory()->create();
+        $item = Item::factory()->create();
+        $vendor = Vendor::factory()->create();
+
+        Livewire::test(CreateInventoryMovement::class)
+            ->fillForm([
+                'type' => InventoryMovement::TYPE_IN_PURCHASE,
+                'warehouse_id' => $warehouse->getKey(),
+                'item_id' => $item->getKey(),
+                'vendor_id' => $vendor->getKey(),
+                'quantity' => 10,
+                'occurred_at' => now(),
+            ])
+            ->set('data.type', InventoryMovement::TYPE_ADJUSTMENT_IN)
+            ->assertFormFieldHidden('vendor_id')
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('inventory_movements', [
+            'type' => InventoryMovement::TYPE_ADJUSTMENT_IN,
+            'item_id' => $item->getKey(),
+            'vendor_id' => null,
+        ]);
+    }
+
+    public function test_transactions_can_be_filtered_by_vendor_even_when_inactive(): void
+    {
+        $vendor = Vendor::factory()->create(['is_active' => false]);
+        $purchase = InventoryMovement::factory()->for($vendor)->create();
+        $otherPurchase = InventoryMovement::factory()->create();
+
+        Livewire::test(ListInventoryMovements::class)
+            ->assertSee($vendor->name)
+            ->filterTable('vendor_id', $vendor->getKey())
+            ->assertCanSeeTableRecords([$purchase])
+            ->assertCanNotSeeTableRecords([$otherPurchase]);
     }
 
     public function test_stock_transfer_can_be_created_through_filament(): void

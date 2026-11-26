@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'production_batch_id',
     'stock_opname_id',
     'item_request_id',
+    'vendor_id',
     'transfer_group_id',
     'parent_movement_id',
     'occurred_at',
@@ -82,6 +83,11 @@ class InventoryMovement extends Model
     public function itemRequest(): BelongsTo
     {
         return $this->belongsTo(ItemRequest::class);
+    }
+
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Vendor::class);
     }
 
     public function parentMovement(): BelongsTo
