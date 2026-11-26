@@ -1,1 +1,0 @@
-Synchronizes finish-good helmet units from an external public API into RSV's inventory, mapping external variants to internal items and recording stock-in movements per production batch.

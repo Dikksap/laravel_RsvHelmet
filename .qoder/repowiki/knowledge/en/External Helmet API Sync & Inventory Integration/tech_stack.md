@@ -1,1 +1,0 @@
-Laravel 13 + Filament 5 admin UI; barryvdh/laravel-dompdf for PDF generation; mrpunyapal/filament-infinite-select for large select lists; fibtegis/filament-infinite-scroll for paginated tables; Carbon for date handling across external timestamps.

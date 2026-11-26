@@ -1,6 +1,0 @@
-- Idempotency checks filter `external_synced_barangs` rows where `inventory_movement_id IS NOT NULL`, treating a row without a linked movement as eligible for re-sync.
-- External API responses are consumed as raw arrays with defensive null-coalescing (`$unit['field'] ?? null`) and explicit `trim()` / `strtoupper()` normalization before business logic.
-- Validation failures inside services throw `Illuminate\Validation\ValidationException::withMessages([...])` rather than returning error codes, letting callers surface field-specific messages to Filament forms.
-- Each sync path wraps movement creation and `ExternalSyncedBarang::updateOrCreate` in `DB::transaction()` so the synced record and the inventory movement commit atomically.
-- Paginated API pulls use a `do { ... } while ($page <= $totalPages)` loop with a fixed limit of 100, accumulating results in a local array keyed by `kode_barang` to deduplicate across pages.
-- Optional operator filters (status, tanggal_awal/tanggal_akhir, kode_batch, production_batch_id, warehouse_id) are passed as an associative `$options` array and resolved inside the service via `filled()` checks.

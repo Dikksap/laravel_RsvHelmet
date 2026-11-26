@@ -17,10 +17,10 @@
 
 ## Update Summary
 **Changes Made**
-- Enhanced Docker production entrypoint with robust storage symlink creation and dangling link detection
-- Updated entrypoint initialization section to reflect improved file system setup procedures
-- Added detailed explanation of force mode usage for storage symlink recreation
-- Enhanced troubleshooting guidance for storage-related issues with new symlink validation logic
+- Fixed critical Docker/Nginx permission issues for image uploads in Alpine-based containers by adding proper directory structure creation (/var/lib/nginx/tmp/client_body) and ownership settings
+- Enhanced timezone configuration with Asia/Jakarta default and environment variable support (APP_TIMEZONE)
+- Updated docker-compose files to pass TZ environment variable consistently across services
+- Added detailed troubleshooting guidance for Nginx permission issues and timezone configuration
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -82,16 +82,18 @@ App --> Logs["Application Logs Volume"]
 - Runtime configuration: Nginx routing, static asset caching, security headers; PHP memory, upload limits, timezone, Opcache; Supervisor managing Nginx, PHP-FPM, and queue worker.
 - **Enhanced** Entrypoint initialization: Creates directories, fixes permissions, ensures storage symlink with robust dangling link detection and force mode, waits for DB, runs migrations if enabled, caches Laravel artifacts, then starts Supervisor.
 - **Updated** HTTPS proxy configuration: Trust proxy middleware enabling proper HTTPS detection when deployed behind Cloudflare Tunnel or similar reverse proxies.
+- **Updated** Nginx permission fixes: Proper directory structure creation and ownership settings for Alpine-based containers to handle image uploads.
+- **Updated** Timezone configuration: Asia/Jakarta default timezone with environment variable support for customization.
 
 **Section sources**
-- [Dockerfile.prod:1-97](file://Dockerfile.prod#L1-L97)
-- [docker-compose.prod.yml:1-84](file://docker-compose.prod.yml#L1-L84)
+- [Dockerfile.prod:1-102](file://Dockerfile.prod#L1-L102)
+- [docker-compose.prod.yml:1-86](file://docker-compose.prod.yml#L1-L86)
 - [.github/workflows/ci-cd.yml:1-150](file://.github/workflows/ci-cd.yml#L1-L150)
 - [deploy.sh:1-39](file://deploy.sh#L1-L39)
 - [docker/production/nginx.conf:1-83](file://docker/production/nginx.conf#L1-L83)
-- [docker/production/php.ini:1-18](file://docker/production/php.ini#L1-L18)
+- [docker/production/php.ini:1-17](file://docker/production/php.ini#L1-L17)
 - [docker/production/supervisord.conf:1-36](file://docker/production/supervisord.conf#L1-L36)
-- [docker/production/entrypoint.sh:1-65](file://docker/production/entrypoint.sh#L1-L65)
+- [docker/production/entrypoint.sh:1-68](file://docker/production/entrypoint.sh#L1-L68)
 - [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
 
 ## Architecture Overview
@@ -102,6 +104,7 @@ The production architecture consists of:
 - Network isolation via a bridge network.
 - CI/CD pipeline that tests code, builds an optimized image, pushes it to GHCR, and optionally deploys via SSH.
 - **Updated** Support for reverse proxy deployments including Cloudflare Tunnel with proper HTTPS termination handling.
+- **Updated** Fixed Nginx permission issues for Alpine-based containers ensuring reliable image upload functionality.
 
 ```mermaid
 graph TB
@@ -129,7 +132,7 @@ Proxy --> App
 
 **Diagram sources**
 - [.github/workflows/ci-cd.yml:15-150](file://.github/workflows/ci-cd.yml#L15-L150)
-- [docker-compose.prod.yml:1-84](file://docker-compose.prod.yml#L1-L84)
+- [docker-compose.prod.yml:1-86](file://docker-compose.prod.yml#L1-L86)
 - [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
 
 ## Detailed Component Analysis
@@ -143,6 +146,7 @@ The production image is built in three stages:
 Key behaviors:
 - System packages include Nginx, Supervisor, curl, git, unzip, MySQL client, and development libraries for GD and ICU.
 - PHP extensions include PDO MySQL, bcmath, GD, intl, zip, opcache, pcntl.
+- **Updated** Nginx permission fixes: Creates `/var/lib/nginx/tmp/client_body` directory and sets proper ownership to `www-data:www-data` for both `/var/lib/nginx` and `/var/log/nginx` to resolve Alpine-based container permission issues.
 - Permissions ensure www-data owns storage and bootstrap/cache.
 - Exposed port is 80; entrypoint initializes the app and Supervisor manages processes.
 
@@ -152,17 +156,18 @@ Start(["Start Build"]) --> ComposerStage["Install Composer Dependencies"]
 ComposerStage --> NodeStage["Build Frontend Assets"]
 NodeStage --> RuntimeStage["Assemble Runtime Image"]
 RuntimeStage --> CopyCode["Copy Source, Vendor, Built Assets"]
-CopyCode --> SetPerms["Set Ownership and Permissions"]
+CopyCode --> FixNginxPerms["Fix Nginx Permissions<br/>(Alpine-specific fix)"]
+FixNginxPerms --> SetPerms["Set Ownership and Permissions"]
 SetPerms --> ExposePort["Expose Port 80"]
 ExposePort --> DefineEntry["Define Entrypoint and Command"]
 DefineEntry --> End(["Image Ready"])
 ```
 
 **Diagram sources**
-- [Dockerfile.prod:4-97](file://Dockerfile.prod#L4-L97)
+- [Dockerfile.prod:4-102](file://Dockerfile.prod#L4-L102)
 
 **Section sources**
-- [Dockerfile.prod:1-97](file://Dockerfile.prod#L1-L97)
+- [Dockerfile.prod:1-102](file://Dockerfile.prod#L1-L102)
 
 ### Compose Services and Networking
 The production Compose file defines:
@@ -175,6 +180,7 @@ Operational notes:
 - APP_KEY and DB_PASSWORD are required environment variables.
 - RUN_MIGRATIONS controls whether migrations run at startup.
 - Session, cache, and queue use the database driver.
+- **Updated** Timezone configuration: Both app and DB services now have consistent timezone settings with Asia/Jakarta default and environment variable support.
 
 ```mermaid
 graph LR
@@ -188,10 +194,10 @@ DBSvc --> VolDB["Volume: db_data"]
 ```
 
 **Diagram sources**
-- [docker-compose.prod.yml:1-84](file://docker-compose.prod.yml#L1-L84)
+- [docker-compose.prod.yml:1-86](file://docker-compose.prod.yml#L1-L86)
 
 **Section sources**
-- [docker-compose.prod.yml:1-84](file://docker-compose.prod.yml#L1-L84)
+- [docker-compose.prod.yml:1-86](file://docker-compose.prod.yml#L1-L86)
 
 ### CI/CD Pipeline
 The GitHub Actions workflow includes:
@@ -273,7 +279,7 @@ PHP runtime configuration includes:
 - Memory limit 512M.
 - Max execution time 300 seconds.
 - Upload and post sizes 64M.
-- Timezone Asia/Jakarta.
+- **Updated** Timezone set to Asia/Jakarta with environment variable support via APP_TIMEZONE.
 - expose_php disabled.
 - Opcache enabled with tuned parameters for memory consumption, string buffer, max accelerated files, timestamp validation disabled, comments saved, and fast shutdown.
 
@@ -292,9 +298,11 @@ class Supervisor {
 class PHPFPM {
 +listen : 9000
 +opcache : enabled
++timezone : Asia/Jakarta
 }
 class Nginx {
 +fastcgi_pass : 127.0.0.1 : 9000
++permissions : fixed for Alpine
 }
 class QueueWorker {
 +artisan queue : work
@@ -308,16 +316,17 @@ Supervisor --> QueueWorker : "manages"
 
 **Diagram sources**
 - [docker/production/supervisord.conf:1-36](file://docker/production/supervisord.conf#L1-L36)
-- [docker/production/php.ini:1-18](file://docker/production/php.ini#L1-L18)
+- [docker/production/php.ini:1-17](file://docker/production/php.ini#L1-L17)
 
 **Section sources**
-- [docker/production/php.ini:1-18](file://docker/production/php.ini#L1-L18)
+- [docker/production/php.ini:1-17](file://docker/production/php.ini#L1-L17)
 - [docker/production/supervisord.conf:1-36](file://docker/production/supervisord.conf#L1-L36)
 
 ### Enhanced Entrypoint Initialization
 The entrypoint script performs comprehensive initialization with robust file system setup:
 - Creating necessary directories for cache, sessions, views, logs, and public storage.
 - Fixing ownership and permissions for storage and bootstrap/cache.
+- **Updated** Nginx permission fixes: Sets ownership of `/var/lib/nginx` and `/var/log/nginx` to `www-data:www-data` to resolve Alpine-based container permission issues.
 - **Enhanced** Ensuring storage symlink exists with robust dangling link detection and recreation using force mode.
 - Optionally waiting for database connectivity and running migrations.
 - Caching configuration, routes, and views; running Filament upgrade.
@@ -327,7 +336,8 @@ The entrypoint script performs comprehensive initialization with robust file sys
 flowchart TD
 Start(["Entrypoint Start"]) --> CreateDirs["Create Directories"]
 CreateDirs --> FixPerms["Fix Permissions"]
-FixPerms --> CheckSymlink{"Storage Symlink Exists?"}
+FixPerms --> FixNginxPerms["Fix Nginx Permissions<br/>(Alpine-specific)"]
+FixNginxPerms --> CheckSymlink{"Storage Symlink Exists?"}
 CheckSymlink --> |No| CreateSymlink["Create Storage Symlink with Force Mode"]
 CheckSymlink --> |Yes| ValidateSymlink{"Symlink Valid?"}
 ValidateSymlink --> |No| RecreateSymlink["Recreate Dangling Link"]
@@ -344,10 +354,10 @@ StartSupervisor --> End(["Processes Running"])
 ```
 
 **Diagram sources**
-- [docker/production/entrypoint.sh:1-65](file://docker/production/entrypoint.sh#L1-L65)
+- [docker/production/entrypoint.sh:1-68](file://docker/production/entrypoint.sh#L1-L68)
 
 **Section sources**
-- [docker/production/entrypoint.sh:1-65](file://docker/production/entrypoint.sh#L1-L65)
+- [docker/production/entrypoint.sh:1-68](file://docker/production/entrypoint.sh#L1-L68)
 
 ## Cloudflare Tunnel and HTTPS Proxy Configuration
 
@@ -408,6 +418,7 @@ The production stack has clear separation of concerns:
 - CI/CD pipeline depends on GitHub Actions, Docker Buildx, GHCR, and optional SSH access.
 - **Updated** Trust proxy middleware handles reverse proxy scenarios for proper HTTPS detection.
 - **Enhanced** Robust storage symlink management ensures reliable file system setup across deployments.
+- **Updated** Fixed Nginx permission issues for Alpine-based containers ensure reliable image upload functionality.
 
 ```mermaid
 graph TB
@@ -425,20 +436,20 @@ GHCR --> Compose
 
 **Diagram sources**
 - [docker/production/nginx.conf:1-83](file://docker/production/nginx.conf#L1-L83)
-- [docker/production/php.ini:1-18](file://docker/production/php.ini#L1-L18)
+- [docker/production/php.ini:1-17](file://docker/production/php.ini#L1-L17)
 - [docker/production/supervisord.conf:1-36](file://docker/production/supervisord.conf#L1-L36)
-- [docker/production/entrypoint.sh:1-65](file://docker/production/entrypoint.sh#L1-L65)
+- [docker/production/entrypoint.sh:1-68](file://docker/production/entrypoint.sh#L1-L68)
 - [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
-- [docker-compose.prod.yml:1-84](file://docker-compose.prod.yml#L1-L84)
+- [docker-compose.prod.yml:1-86](file://docker-compose.prod.yml#L1-L86)
 - [.github/workflows/ci-cd.yml:1-150](file://.github/workflows/ci-cd.yml#L1-L150)
 
 **Section sources**
 - [docker/production/nginx.conf:1-83](file://docker/production/nginx.conf#L1-L83)
-- [docker/production/php.ini:1-18](file://docker/production/php.ini#L1-L18)
+- [docker/production/php.ini:1-17](file://docker/production/php.ini#L1-L17)
 - [docker/production/supervisord.conf:1-36](file://docker/production/supervisord.conf#L1-L36)
-- [docker/production/entrypoint.sh:1-65](file://docker/production/entrypoint.sh#L1-L65)
+- [docker/production/entrypoint.sh:1-68](file://docker/production/entrypoint.sh#L1-L68)
 - [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
-- [docker-compose.prod.yml:1-84](file://docker-compose.prod.yml#L1-L84)
+- [docker-compose.prod.yml:1-86](file://docker-compose.prod.yml#L1-L86)
 - [.github/workflows/ci-cd.yml:1-150](file://.github/workflows/ci-cd.yml#L1-L150)
 
 ## Performance Considerations
@@ -450,6 +461,7 @@ GHCR --> Compose
 - Database timezone is set to Asia/Jakarta to avoid conversion overhead.
 - **Updated** Trust proxy configuration adds minimal overhead while ensuring correct HTTPS handling.
 - **Enhanced** Robust storage symlink management reduces deployment failures and improves reliability.
+- **Updated** Fixed Nginx permission issues eliminate upload-related performance bottlenecks in Alpine-based containers.
 
 Recommendations:
 - Monitor Opcache hit rate and adjust memory_consumption based on application size.
@@ -472,6 +484,20 @@ Common issues and resolutions:
 - **Updated** Mixed content errors with HTTPS: Verify trust proxy configuration is active and reverse proxy sends proper X-Forwarded-* headers. Check browser console for mixed content warnings.
 - **Updated** Login form submission blocked on HTTPS: Ensure trust proxy middleware is configured and Cloudflare Tunnel is properly forwarding HTTPS requests.
 
+**Updated** Nginx Permission Issues (Alpine-based containers):
+- **Symptom**: Image uploads fail with permission denied errors in Alpine-based containers
+- **Cause**: Alpine ships `/var/lib/nginx` owned by "nginx" user, blocking request-body temp files
+- **Solution**: The Dockerfile now creates `/var/lib/nginx/tmp/client_body` directory and sets proper ownership to `www-data:www-data`
+- **Verification**: Check that `/var/lib/nginx/tmp/client_body` exists and is owned by `www-data:www-data`
+- **Manual Fix**: If issues persist, run `chown -R www-data:www-data /var/lib/nginx /var/log/nginx` inside the container
+
+**Updated** Timezone Configuration Issues:
+- **Symptom**: Incorrect timestamps in logs, database records, or application output
+- **Cause**: Timezone not properly configured across all services
+- **Solution**: Both app and DB services now have consistent timezone settings with Asia/Jakarta default
+- **Verification**: Check that `date.timezone = Asia/Jakarta` in PHP config and `TZ: Asia/Jakarta` in docker-compose
+- **Customization**: Override with `APP_TIMEZONE` environment variable for different timezones
+
 **Enhanced** Storage Symlink Troubleshooting:
 - **Symptom**: Storage symlinks are missing or broken after deployment
 - **Cause**: Volume mounting issues or permission problems causing dangling symlinks
@@ -479,45 +505,44 @@ Common issues and resolutions:
 - **Verification**: Check `/var/www/html/public/storage` exists and points to `/var/www/html/storage/app/public`
 - **Manual Fix**: Run `php artisan storage:link --force` if automatic recreation fails
 
-**Updated** HTTPS Proxy Troubleshooting:
-- **Symptom**: Forms fail to submit on HTTPS pages
-- **Cause**: Laravel generates HTTP URLs instead of HTTPS due to missing trust proxy configuration
-- **Solution**: Verify trust proxy middleware is configured in bootstrap/app.php
-- **Verification**: Check that X-Forwarded-Proto header is present in incoming requests
-
 Operational commands:
 - View container status: docker compose ps
 - Follow logs: docker compose logs -f app
 - Run artisan commands: docker compose exec -T app php artisan [command]
 - **Enhanced** Check storage symlink validity: `ls -la /var/www/html/public/storage`
+- **Updated** Test Nginx permissions: `ls -la /var/lib/nginx/tmp/client_body`
+- **Updated** Check timezone configuration: `docker compose exec app php -r "echo date_default_timezone_get();"`
 - **Updated** Test HTTPS functionality: curl -I https://your-domain.com to verify proper HTTPS response headers
 
 **Section sources**
 - [deploy.sh:14-33](file://deploy.sh#L14-L33)
-- [docker/production/entrypoint.sh:6-62](file://docker/production/entrypoint.sh#L6-L62)
+- [docker/production/entrypoint.sh:6-68](file://docker/production/entrypoint.sh#L6-L68)
 - [docker/production/nginx.conf:47-81](file://docker/production/nginx.conf#L47-L81)
 - [docker/production/supervisord.conf:25-35](file://docker/production/supervisord.conf#L25-L35)
 - [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
+- [Dockerfile.prod:70-73](file://Dockerfile.prod#L70-L73)
+- [docker-compose.prod.yml:18-19](file://docker-compose.prod.yml#L18-L19)
 
 ## Conclusion
-RSV Helmet's production deployment leverages a robust, containerized stack with Nginx, PHP-FPM, and Supervisor, backed by MariaDB. The CI/CD pipeline automates testing, building, and pushing images to GHCR, with optional SSH-based deployment. Environment configuration is centralized in Compose and environment variables, while security headers and PHP hardening are applied in Nginx and PHP configs. The application now supports deployment behind reverse proxies like Cloudflare Tunnel with proper HTTPS termination handling through trust proxy configuration. The enhanced entrypoint initialization provides robust storage symlink management with dangling link detection and force mode for reliable file system setup. For scale-out, consider horizontal scaling of app containers behind a reverse proxy, externalizing cache/session stores, and using managed databases. Disaster recovery should focus on backing up DB volumes and application storage/logs.
+RSV Helmet's production deployment leverages a robust, containerized stack with Nginx, PHP-FPM, and Supervisor, backed by MariaDB. The CI/CD pipeline automates testing, building, and pushing images to GHCR, with optional SSH-based deployment. Environment configuration is centralized in Compose and environment variables, while security headers and PHP hardening are applied in Nginx and PHP configs. The application now supports deployment behind reverse proxies like Cloudflare Tunnel with proper HTTPS termination handling through trust proxy configuration. The enhanced entrypoint initialization provides robust storage symlink management with dangling link detection and force mode for reliable file system setup. Critical fixes for Nginx permission issues in Alpine-based containers ensure reliable image upload functionality, while enhanced timezone configuration provides consistent time handling across all services. For scale-out, consider horizontal scaling of app containers behind a reverse proxy, externalizing cache/session stores, and using managed databases. Disaster recovery should focus on backing up DB volumes and application storage/logs.
 
 [No sources needed since this section summarizes without analyzing specific files]
 
 ## Appendices
 
 ### Environment Variables Reference
-- APP_NAME, APP_ENV, APP_KEY, APP_DEBUG, APP_URL, APP_LOCALE, APP_FALLBACK_LOCALE
+- APP_NAME, APP_ENV, APP_KEY, APP_DEBUG, APP_URL, APP_LOCALE, APP_FALLBACK_LOCALE, **APP_TIMEZONE**
 - LOG_CHANNEL, LOG_STACK, LOG_LEVEL
 - DB_CONNECTION, DB_HOST, DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD
 - SESSION_DRIVER, SESSION_LIFETIME, CACHE_STORE, QUEUE_CONNECTION
 - RUN_MIGRATIONS
 - EXTERNAL_BARANG_API_URL
+- **TZ** (system timezone for containers)
 
 These variables are defined in the Compose file and consumed by the application at runtime.
 
 **Section sources**
-- [docker-compose.prod.yml:10-37](file://docker-compose.prod.yml#L10-L37)
+- [docker-compose.prod.yml:10-39](file://docker-compose.prod.yml#L10-L39)
 
 ### Security Hardening Checklist
 - Enable security headers in Nginx (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection).
@@ -529,12 +554,14 @@ These variables are defined in the Compose file and consumed by the application 
 - **Updated** Configure trust proxy middleware for reverse proxy deployments to prevent mixed content issues.
 - **Updated** Verify X-Forwarded-* headers are properly handled by the application.
 - **Enhanced** Ensure storage symlinks are properly created and validated during container initialization.
+- **Updated** Verify Nginx permissions are properly set for Alpine-based containers to prevent upload issues.
 
 **Section sources**
 - [docker/production/nginx.conf:26-80](file://docker/production/nginx.conf#L26-L80)
 - [docker/production/php.ini:6-7](file://docker/production/php.ini#L6-L7)
 - [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
-- [docker/production/entrypoint.sh:18-22](file://docker/production/entrypoint.sh#L18-L22)
+- [docker/production/entrypoint.sh:18-25](file://docker/production/entrypoint.sh#L18-L25)
+- [Dockerfile.prod:70-73](file://Dockerfile.prod#L70-L73)
 
 ### Scaling and Load Balancing
 - Scale horizontally by running multiple app containers behind a reverse proxy (e.g., Nginx, HAProxy, Traefik).
@@ -543,6 +570,7 @@ These variables are defined in the Compose file and consumed by the application 
 - Configure health checks and graceful shutdowns for zero-downtime deployments.
 - **Updated** Ensure trust proxy configuration works across all application instances behind load balancers.
 - **Enhanced** Verify storage symlink integrity across all container instances.
+- **Updated** Confirm Nginx permission fixes are applied consistently across all container instances.
 
 [No sources needed since this section provides general guidance]
 
@@ -553,6 +581,7 @@ These variables are defined in the Compose file and consumed by the application 
 - Document restore steps: recreate volumes, restore backups, re-run migrations if schema changed, restart services.
 - **Updated** Verify HTTPS proxy configuration remains intact after restoration.
 - **Enhanced** Validate storage symlinks are properly recreated after volume restoration.
+- **Updated** Verify Nginx permissions are restored correctly after volume operations.
 
 [No sources needed since this section provides general guidance]
 
@@ -586,3 +615,48 @@ curl -I https://yourdomain.com
 
 **Section sources**
 - [bootstrap/app.php:14-24](file://bootstrap/app.php#L14-L24)
+
+### Nginx Permission Fix Details
+
+#### Alpine-Based Container Permission Issues
+The following changes were implemented to fix critical permission issues in Alpine-based containers:
+
+**Dockerfile Changes:**
+- Created `/var/lib/nginx/tmp/client_body` directory structure
+- Set ownership of `/var/lib/nginx` and `/var/log/nginx` to `www-data:www-data`
+
+**Entrypoint Changes:**
+- Added ownership fix for Nginx directories during container initialization
+- Ensures proper permissions are set even if Dockerfile permissions are overridden
+
+**Impact:**
+- Resolves image upload failures in Alpine-based containers
+- Eliminates permission denied errors for temporary file operations
+- Maintains compatibility with existing deployments
+
+**Section sources**
+- [Dockerfile.prod:70-73](file://Dockerfile.prod#L70-L73)
+- [docker/production/entrypoint.sh:18-19](file://docker/production/entrypoint.sh#L18-L19)
+
+### Timezone Configuration Details
+
+#### Consistent Timezone Management
+The following timezone improvements were implemented:
+
+**PHP Configuration:**
+- Default timezone set to `Asia/Jakarta` in php.ini
+- Environment variable support via `APP_TIMEZONE`
+
+**Docker Compose Configuration:**
+- Both app and DB services configured with `TZ: Asia/Jakarta`
+- Consistent timezone handling across all services
+
+**Benefits:**
+- Eliminates timezone conversion overhead
+- Provides consistent timestamps across application components
+- Allows easy customization for different deployment regions
+
+**Section sources**
+- [docker/production/php.ini:6](file://docker/production/php.ini#L6)
+- [docker-compose.prod.yml:18-19](file://docker-compose.prod.yml#L18-L19)
+- [docker-compose.prod.yml:62](file://docker-compose.prod.yml#L62)

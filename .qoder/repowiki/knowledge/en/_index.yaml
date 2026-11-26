@@ -3,14 +3,15 @@ schema_version: 1
 locale: en-US
 branch: master
 nodes_managed: true
-exported_at: "2026-11-26T06:43:59Z"
+exported_at: "2026-11-26T07:12:56Z"
 modules:
     "":
-        dir_name: External Helmet API Sync & Inventory Integration
-        title: External Helmet API Sync & Inventory Integration
+        dir_name: Inventory & Production Management Platform (Laravel + Filament)
+        title: Inventory & Production Management Platform (Laravel + Filament)
         scope: []
         source_files: []
-        children: []
+        children:
+            - vendors
         depends_on: []
         related_to: []
     vendors:
