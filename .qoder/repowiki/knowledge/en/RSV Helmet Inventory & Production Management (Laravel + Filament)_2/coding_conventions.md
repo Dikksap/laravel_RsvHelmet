@@ -1,6 +1,0 @@
-- Each domain model in `app/Models` has a matching Eloquent factory in `database/factories` with the same class name suffix.
-- Filament Resources follow a fixed subdirectory layout of `Resource.php` plus `Pages/{Create,Edit,List}*.php` and an optional `RelationManagers/` folder for child relations.
-- Business rules are extracted into dedicated service classes under `app/Services` (e.g. `*Service.php`) rather than being placed in controllers or models.
-- Custom Filament pages extend Filament's Page base class and render their UI through corresponding Blade templates under `resources/views/filament/pages`.
-- CSV data loading is implemented as paired Filament Import/Export classes sharing the same entity name (e.g. `ItemImporter`/`ItemExporter`).
-- Navigation in the Filament admin panel is organized into collapsible groups (Gudang, Permintaan Barang, Produksi, Integrasi Eksternal, Data Master) defined centrally in `AdminPanelProvider`.

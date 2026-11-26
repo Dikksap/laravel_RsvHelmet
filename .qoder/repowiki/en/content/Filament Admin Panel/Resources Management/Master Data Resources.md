@@ -18,7 +18,15 @@
 - [BrandResource.php](file://app/Filament/Resources/Brands/BrandResource.php)
 - [ItemTypeResource.php](file://app/Filament/Resources/ItemTypes/ItemTypeResource.php)
 - [UomResource.php](file://app/Filament/Resources/Uoms/UomResource.php)
+- [ItemBulkEditTest.php](file://tests/Feature/ItemBulkEditTest.php)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive documentation for the new bulk editing functionality with modal-based 'Edit massal' action
+- Updated ItemResource section to include bulk edit master data capabilities
+- Added new section covering bulk editing workflow, conditional form fields, and validation logic
+- Enhanced table actions documentation to include the new bulk edit feature
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -32,11 +40,11 @@
 9. [Conclusion](#conclusion)
 
 ## Introduction
-This document explains the master data management resources for Items, Categories, Brands, Types, Units of Measurement (UoMs), and Attributes. It focuses on Item as the central entity with complex relationships to components, variants, and inventory balances. It also documents form structures, validation rules, custom field components such as InfiniteSelect, and relationship managers for managing composition, attribute-value mappings, and warehouse stock levels. Guidelines are provided for hierarchical data structures, attribute-value pairs, and unit conversions.
+This document explains the master data management resources for Items, Categories, Brands, Types, Units of Measurement (UoMs), and Attributes. It focuses on Item as the central entity with complex relationships to components, variants, and inventory balances. The system now includes sophisticated bulk editing capabilities allowing administrators to efficiently update multiple items simultaneously through a modal-based interface with conditional form fields and validation logic. It also documents form structures, validation rules, custom field components such as InfiniteSelect, and relationship managers for managing composition, attribute-value mappings, and warehouse stock levels. Guidelines are provided for hierarchical data structures, attribute-value pairs, and unit conversions.
 
 ## Project Structure
 The master data is implemented using Filament Resources backed by Eloquent models:
-- ItemResource defines the primary Item UI, including forms, tables, filters, actions, and relation managers.
+- ItemResource defines the primary Item UI, including forms, tables, filters, actions, relation managers, and sophisticated bulk editing capabilities.
 - Supporting resources manage Categories, Brands, Types, UoMs, and Attributes.
 - Models define relationships, casts, scopes, and business logic such as cycle detection for compositions and stock status computation.
 
@@ -98,7 +106,7 @@ I --> IC
 - [ItemAttributeResource.php:26-122](file://app/Filament/Resources/ItemAttributes/ItemAttributeResource.php#L26-L122)
 
 ## Core Components
-- ItemResource: Central resource for Items with sections for identity, variants, dimensions/weight, pricing, and behavior toggles. Provides table columns, filters, bulk export, and navigation to a Bill of Materials builder.
+- ItemResource: Central resource for Items with sections for identity, variants, dimensions/weight, pricing, and behavior toggles. Provides table columns, filters, bulk export, navigation to a Bill of Materials builder, and sophisticated bulk editing capabilities for master data updates.
 - Item model: Defines relationships to types, categories, brands, divisions, UoMs, parent/children hierarchy, variant mappings, external mappings, inventory balances/movements, and component relationships. Includes casts for numeric and boolean fields and scopes for active, parents, and variants.
 - ItemComponentsRelationManager: Manages item composition with infinite select for components, uniqueness constraints per parent, and cycle prevention.
 - VariantMappingsRelationManager: Manages attribute-value pairs for variants, ensuring unique attributes per item and dynamic value selection based on chosen attribute.
@@ -109,6 +117,7 @@ I --> IC
 **Section sources**
 - [ItemResource.php:55-195](file://app/Filament/Resources/Items/ItemResource.php#L55-L195)
 - [ItemResource.php:197-279](file://app/Filament/Resources/Items/ItemResource.php#L197-L279)
+- [ItemResource.php:290-380](file://app/Filament/Resources/Items/ItemResource.php#L290-L380)
 - [Item.php:41-172](file://app/Models/Item.php#L41-L172)
 - [ItemComponentsRelationManager.php:23-124](file://app/Filament/Resources/Items/RelationManagers/ItemComponentsRelationManager.php#L23-L124)
 - [VariantMappingsRelationManager.php:19-97](file://app/Filament/Resources/Items/RelationManagers/VariantMappingsRelationManager.php#L19-L97)
@@ -117,10 +126,11 @@ I --> IC
 - [ItemAttributeResource.php:44-122](file://app/Filament/Resources/ItemAttributes/ItemAttributeResource.php#L44-L122)
 
 ## Architecture Overview
-The system organizes master data through Filament resources that render forms, tables, and relation managers. The Item resource orchestrates related data:
+The system organizes master data through Filament resources that render forms, tables, and relation managers. The Item resource orchestrates related data and provides sophisticated bulk editing capabilities:
 - Composition: Item -> ItemComponent -> Item (component).
 - Variants: Item -> ItemVariantMapping -> ItemAttribute + ItemAttributeValue.
 - Inventory: Item -> InventoryBalance -> Warehouse.
+- Bulk Editing: Modal-based interface with conditional form fields and toggle switches for selective master data updates.
 
 ```mermaid
 classDiagram
@@ -206,9 +216,11 @@ ItemComponent --> Item : "component_item_id"
 - Table and filters:
   - Columns include code, name, type, category, brand, division, base UoM, base price, variant flag, active flag, and parent item name.
   - Filters by type, category, brand, division, has_variants, and is_active.
-  - Actions include composition link to BomBuilder, edit, delete, bulk export, and bulk delete.
+  - Actions include composition link to BomBuilder, edit, delete, bulk export, bulk delete, and sophisticated bulk editing for master data.
 - Relations:
   - Registers VariantMappingsRelationManager, ItemComponentsRelationManager, and InventoryBalancesRelationManager.
+
+**Updated** Added comprehensive bulk editing functionality with modal-based interface for updating master data across multiple items simultaneously.
 
 ```mermaid
 sequenceDiagram
@@ -236,6 +248,47 @@ IR-->>Admin : Redirect / success
 - [ItemResource.php:55-195](file://app/Filament/Resources/Items/ItemResource.php#L55-L195)
 - [ItemResource.php:197-279](file://app/Filament/Resources/Items/ItemResource.php#L197-L279)
 - [ItemResource.php:281-287](file://app/Filament/Resources/Items/ItemResource.php#L281-L287)
+
+### Bulk Edit Master Data Functionality
+**New Section**
+
+The bulk edit master data functionality provides a sophisticated modal-based interface for updating multiple items simultaneously. Key features include:
+
+- **Modal Interface**: Opens a dedicated modal titled "Edit massal data master" with clear instructions for selecting which master data fields to update.
+- **Conditional Form Fields**: Toggle switches control the visibility and requirement of corresponding select fields:
+  - `change_item_type` toggle controls `item_type_id` select (required when enabled)
+  - `change_category` toggle controls `category_id` select (optional, can clear existing values)
+  - `change_brand` toggle controls `brand_id` select (optional, can clear existing values)
+  - `change_division` toggle controls `division_id` select (optional, can clear existing values)
+- **Validation Logic**: 
+  - Item type becomes required when the change_item_type toggle is enabled
+  - Other fields allow null values to clear existing associations
+  - At least one toggle must be enabled for successful submission
+- **Update Processing**: Only selected fields are updated, preserving existing values for unselected fields
+- **User Feedback**: Shows notification with count of updated items and deselects records after completion
+
+```mermaid
+flowchart TD
+A["Open Bulk Edit Modal"] --> B["Display Toggle Switches"]
+B --> C{"User enables toggle?"}
+C --> |Yes| D["Show corresponding Select Field"]
+C --> |No| E["Hide Select Field"]
+D --> F{"User submits form?"}
+E --> F
+F --> |Yes| G{"At least one toggle enabled?"}
+G --> |No| H["Show warning: No changes made"]
+G --> |Yes| I["Build updates array"]
+I --> J["Update selected items"]
+J --> K["Show success notification with count"]
+K --> L["Deselect records"]
+```
+
+**Diagram sources**
+- [ItemResource.php:290-380](file://app/Filament/Resources/Items/ItemResource.php#L290-L380)
+
+**Section sources**
+- [ItemResource.php:290-380](file://app/Filament/Resources/Items/ItemResource.php#L290-L380)
+- [ItemBulkEditTest.php:27-129](file://tests/Feature/ItemBulkEditTest.php#L27-L129)
 
 ### Item Model Relationships and Scopes
 - Relationships:
@@ -309,7 +362,7 @@ C --> |No| H["Cancel or continue editing"]
 - [ItemComponent.php:19-85](file://app/Models/ItemComponent.php#L19-L85)
 
 ### VariantMappingsRelationManager
-- Purpose: Manage attribute-value pairs for an Item’s variants.
+- Purpose: Manage attribute-value pairs for an Item's variants.
 - Form fields:
   - attribute_id: Select from ItemAttribute with live filtering to exclude already used attributes for the same Item.
   - attribute_value_id: Dynamic options filtered by selected attribute_id.
@@ -535,8 +588,12 @@ IR --> Comp_IS["InfiniteSelect"]
 - Queries:
   - Relationship queries should be eager-loaded where appropriate to avoid N+1 issues.
   - Filters leverage database-level conditions.
+  - Bulk operations use efficient batch updates with whereKey() for optimal performance.
 - Computation:
   - Stock status is computed via an Eloquent attribute accessor to minimize repeated logic.
+- Bulk Operations:
+  - Single database query updates all selected items simultaneously.
+  - Conditional field updates prevent unnecessary database writes.
 
 [No sources needed since this section provides general guidance]
 
@@ -552,14 +609,19 @@ IR --> Comp_IS["InfiniteSelect"]
 - Stock status anomalies:
   - Verify quantity_on_hand and minimum_quantity values.
   - Confirm stockStatus logic aligns with business thresholds.
+- Bulk edit validation errors:
+  - Item type field becomes required when change_item_type toggle is enabled.
+  - At least one toggle must be enabled for successful submission.
+  - Clearing select values removes existing associations (sets to null).
 
 **Section sources**
 - [ItemComponentsRelationManager.php:63-77](file://app/Filament/Resources/Items/RelationManagers/ItemComponentsRelationManager.php#L63-L77)
 - [ItemComponent.php:50-84](file://app/Models/ItemComponent.php#L50-L84)
 - [VariantMappingsRelationManager.php:51-67](file://app/Filament/Resources/Items/RelationManagers/VariantMappingsRelationManager.php#L51-L67)
 - [InventoryBalance.php:47-69](file://app/Models/InventoryBalance.php#L47-L69)
+- [ItemResource.php:343-379](file://app/Filament/Resources/Items/ItemResource.php#L343-L379)
 
 ## Conclusion
-The master data resources provide a robust foundation for managing Items and their relationships. ItemResource serves as the central hub, integrating composition, variants, and inventory balances through dedicated relation managers. Hierarchical structures for Items and Categories, along with flexible attribute-value pairs and unit references, enable comprehensive product modeling. Validation rules and custom components like InfiniteSelect ensure data integrity and performance at scale.
+The master data resources provide a robust foundation for managing Items and their relationships. ItemResource serves as the central hub, integrating composition, variants, and inventory balances through dedicated relation managers. The addition of sophisticated bulk editing capabilities allows administrators to efficiently update multiple items simultaneously through a modal-based interface with conditional form fields and validation logic. Hierarchical structures for Items and Categories, along with flexible attribute-value pairs and unit references, enable comprehensive product modeling. Validation rules and custom components like InfiniteSelect ensure data integrity and performance at scale. The bulk editing feature significantly improves operational efficiency by reducing repetitive manual updates while maintaining data consistency through proper validation and user feedback mechanisms.
 
 [No sources needed since this section summarizes without analyzing specific files]

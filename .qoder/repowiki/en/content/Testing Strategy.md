@@ -7,8 +7,11 @@
 - [ProductionBatchTest.php](file://tests/Feature/ProductionBatchTest.php)
 - [ExternalBarangApiServiceTest.php](file://tests/Feature/ExternalBarangApiServiceTest.php)
 - [InventoryBalanceTest.php](file://tests/Feature/InventoryBalanceTest.php)
+- [ItemBulkEditTest.php](file://tests/Feature/ItemBulkEditTest.php)
 - [ItemFactory.php](file://database/factories/ItemFactory.php)
 - [ProductionBatchFactory.php](file://database/factories/ProductionBatchFactory.php)
+- [ItemResource.php](file://app/Filament/Resources/Items/ItemResource.php)
+- [ListItems.php](file://app/Filament/Resources/Items/Pages/ListItems.php)
 - [ci-cd.yml](file://.github/workflows/ci-cd.yml)
 - [SKILL.md](file://.claude/skills/testing-best-practices/SKILL.md)
 - [naming.md](file://.claude/skills/testing-best-practices/rules/naming.md)
@@ -16,6 +19,14 @@
 - [test-data.md](file://.claude/skills/testing-best-practices/rules/test-data.md)
 - [performance.md](file://.claude/skills/testing-best-practices/rules/performance.md)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added comprehensive section on bulk editing functionality tests
+- Updated architecture overview to include Filament bulk actions
+- Enhanced Livewire integration testing examples with bulk action patterns
+- Added new diagram illustrating bulk edit workflow
+- Expanded validation testing examples with bulk edit scenarios
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -29,16 +40,16 @@
 9. [Conclusion](#conclusion)
 
 ## Introduction
-This document defines the testing strategy for RSV Helmet. It explains how feature tests cover user workflows and how unit tests validate business logic. It documents test organization, naming conventions, best practices, mocking strategies, database testing approaches, factory-based test data management, and examples for complex scenarios such as production batch workflows, inventory calculations, and external API integrations. It also covers performance optimization and continuous integration setup.
+This document defines the testing strategy for RSV Helmet. It explains how feature tests cover user workflows and how unit tests validate business logic. It documents test organization, naming conventions, best practices, mocking strategies, database testing approaches, factory-based test data management, and examples for complex scenarios such as production batch workflows, inventory calculations, external API integrations, and bulk editing operations. It also covers performance optimization and continuous integration setup.
 
 The project uses PHPUnit with a clear separation between Feature and Unit testsuites. The repository includes comprehensive skill rules that guide consistency, isolation, data ownership, endpoint coverage, security, and suite performance.
 
 ## Project Structure
 Tests are organized under `tests/` with two primary suites:
-- Feature tests under `tests/Feature/` for end-to-end user workflows, Filament pages, Livewire interactions, and service orchestration.
+- Feature tests under `tests/Feature/` for end-to-end user workflows, Filament pages, Livewire interactions, bulk editing operations, and service orchestration.
 - Unit tests under `tests/Unit/` for framework-independent business logic.
 
-Configuration is defined in `phpunit.xml`, which sets environment variables for fast testing (in-memory SQLite, array cache/mail/session drivers, disabled telemetry). The base test class extends Laravel’s base test case.
+Configuration is defined in `phpunit.xml`, which sets environment variables for fast testing (in-memory SQLite, array cache/mail/session drivers, disabled telemetry). The base test class extends Laravel's base test case.
 
 ```mermaid
 graph TB
@@ -58,12 +69,12 @@ D --> C
 
 ## Core Components
 - Test suites: Unit and Feature are explicitly declared and include their directories.
-- Base test class: All tests extend the project’s base `TestCase`.
+- Base test class: All tests extend the project's base `TestCase`.
 - Environment configuration: In-memory SQLite, array mail/cache/session, disabled Pulse/Telescope/Nightwatch to speed up runs.
 - Skill rules: Naming, assertions, endpoint coverage, test data, isolation, security, and performance rules provide consistent standards.
 
 Key responsibilities:
-- Feature tests assert observable behavior through HTTP/Livewire/Filament interactions and database state changes.
+- Feature tests assert observable behavior through HTTP/Livewire/Filament interactions, bulk editing operations, and database state changes.
 - Unit tests focus on pure logic without booting the application.
 
 **Section sources**
@@ -72,10 +83,11 @@ Key responsibilities:
 
 ## Architecture Overview
 The testing architecture follows a layered approach:
-- Tests interact with the application via HTTP endpoints, Livewire components, or direct service calls.
+- Tests interact with the application via HTTP endpoints, Livewire components, Filament bulk actions, or direct service calls.
 - External dependencies are isolated using fakes and mocks.
 - Database interactions use real queries against an in-memory SQLite database.
 - Factories generate deterministic, minimal test data.
+- Bulk editing operations are tested through Livewire's table bulk action system.
 
 ```mermaid
 graph TB
@@ -85,6 +97,7 @@ UT["Unit Tests"]
 end
 subgraph "Application"
 UI["Filament Pages / Livewire"]
+BA["Bulk Actions"]
 SVC["Services"]
 DB["Database (SQLite :memory:)"]
 end
@@ -92,9 +105,11 @@ subgraph "External"
 HTTP["HTTP Client"]
 end
 FT --> UI
+FT --> BA
 FT --> SVC
 UT --> SVC
 UI --> DB
+BA --> DB
 SVC --> DB
 SVC --> HTTP
 FT -.->|Fakes/Mocks| HTTP
@@ -143,6 +158,41 @@ T->>FW : Render pages and assert CSV export
 - [ProductionBatchTest.php:159-243](file://tests/Feature/ProductionBatchTest.php#L159-L243)
 - [ProductionBatchTest.php:245-337](file://tests/Feature/ProductionBatchTest.php#L245-L337)
 - [ProductionBatchTest.php:339-478](file://tests/Feature/ProductionBatchTest.php#L339-L478)
+
+### Bulk Editing Functionality Tests
+New comprehensive test coverage for bulk editing functionality validates Filament table bulk actions and Livewire integration. The ItemBulkEditTest covers:
+- Bulk updating master data (item type, category, brand, division) across multiple selected items.
+- Selective field updates where unchecked fields remain unchanged.
+- Clearing master data values by setting them to null.
+- Validation requirements ensuring required fields are properly validated.
+- User authentication and authorization for bulk operations.
+
+```mermaid
+sequenceDiagram
+participant T as "ItemBulkEditTest"
+participant LW as "Livewire"
+participant BA as "BulkAction"
+participant DB as "Database"
+T->>DB : Create Items, Master Data (Type, Category, Brand, Division)
+T->>LW : Test ListItems component
+LW->>BA : Call bulkEditMasterData action
+BA->>DB : Update selected items with master data
+DB-->>BA : Updated records
+BA-->>LW : Success notification
+LW-->>T : Assert no form errors and notifications
+T->>DB : Verify updated records and unchanged records
+```
+
+**Diagram sources**
+- [ItemBulkEditTest.php:27-67](file://tests/Feature/ItemBulkEditTest.php#L27-L67)
+- [ItemResource.php:290-380](file://app/Filament/Resources/Items/ItemResource.php#L290-L380)
+
+**Section sources**
+- [ItemBulkEditTest.php:27-67](file://tests/Feature/ItemBulkEditTest.php#L27-L67)
+- [ItemBulkEditTest.php:69-87](file://tests/Feature/ItemBulkEditTest.php#L69-L87)
+- [ItemBulkEditTest.php:89-113](file://tests/Feature/ItemBulkEditTest.php#L89-L113)
+- [ItemBulkEditTest.php:115-129](file://tests/Feature/ItemBulkEditTest.php#L115-L129)
+- [ItemResource.php:290-380](file://app/Filament/Resources/Items/ItemResource.php#L290-L380)
 
 ### External API Integration Tests
 These tests verify the external barang API service by faking HTTP responses for list, detail, variant recap, available variants, and ping endpoints. They ensure:
@@ -267,6 +317,7 @@ Guidelines:
 Examples in the repository:
 - External API service tests fake HTTP endpoints and assert parsed results.
 - Production batch tests use real database interactions and service calls.
+- Bulk editing tests use real database interactions through Livewire components.
 
 **Section sources**
 - [isolation.md:5-52](file://.claude/skills/testing-best-practices/rules/isolation.md#L5-L52)
@@ -279,25 +330,28 @@ Examples in the repository:
 - Avoid mocking the query builder; assert real records and serialized model shapes when necessary.
 
 Evidence:
-- `ProductionBatchTest` and `InventoryBalanceTest` use `RefreshDatabase`.
+- `ProductionBatchTest`, `InventoryBalanceTest`, and `ItemBulkEditTest` use `RefreshDatabase`.
 - `phpunit.xml` configures SQLite in memory.
 
 **Section sources**
 - [ProductionBatchTest.php:29-38](file://tests/Feature/ProductionBatchTest.php#L29-L38)
 - [InventoryBalanceTest.php:20-29](file://tests/Feature/InventoryBalanceTest.php#L20-L29)
+- [ItemBulkEditTest.php:18-25](file://tests/Feature/ItemBulkEditTest.php#L18-L25)
 - [phpunit.xml:20-35](file://phpunit.xml#L20-L35)
 - [isolation.md:47-52](file://.claude/skills/testing-best-practices/rules/isolation.md#L47-L52)
 
-### Complex Scenarios: Production Batch Workflows, Inventory Calculations, External APIs
+### Complex Scenarios: Production Batch Workflows, Inventory Calculations, External APIs, Bulk Operations
 - Production batch workflows: requirement aggregation, recalculation, cycle prevention, raw material explosion, and Filament page actions are covered comprehensively.
 - Inventory calculations: stock totals across warehouses, filtering, uniqueness constraints, and stock status calculation are validated.
 - External API integrations: HTTP fakes cover list/detail/recap/variants/ping endpoints with precise endpoint matching.
+- Bulk editing operations: comprehensive validation of Filament bulk actions, selective field updates, validation requirements, and database state changes are thoroughly tested.
 
 **Section sources**
 - [ProductionBatchTest.php:40-142](file://tests/Feature/ProductionBatchTest.php#L40-L142)
 - [ProductionBatchTest.php:339-409](file://tests/Feature/ProductionBatchTest.php#L339-L409)
 - [InventoryBalanceTest.php:68-138](file://tests/Feature/InventoryBalanceTest.php#L68-L138)
 - [ExternalBarangApiServiceTest.php:11-149](file://tests/Feature/ExternalBarangApiServiceTest.php#L11-L149)
+- [ItemBulkEditTest.php:27-129](file://tests/Feature/ItemBulkEditTest.php#L27-L129)
 
 ## Dependency Analysis
 The test suite depends on:
@@ -312,21 +366,26 @@ PT["ProductionBatchTest"] --> BF["BatchRequirementService"]
 PT --> EF["BomExplosionService"]
 PT --> DB["Database"]
 PT --> FW["Filament/Livewire"]
-EB["ExternalBarangApiServiceTest"] --> HC["Http Fake"]
-EB --> ES["ExternalBarangApiService"]
 IB["InventoryBalanceTest"] --> FW
 IB --> DB
+IBE["ItemBulkEditTest"] --> LW["Livewire"]
+IBE --> BA["BulkActions"]
+IBE --> DB
+EB["ExternalBarangApiServiceTest"] --> HC["Http Fake"]
+EB --> ES["ExternalBarangApiService"]
 ```
 
 **Diagram sources**
 - [ProductionBatchTest.php:40-142](file://tests/Feature/ProductionBatchTest.php#L40-L142)
-- [ExternalBarangApiServiceTest.php:11-49](file://tests/Feature/ExternalBarangApiServiceTest.php#L11-L49)
 - [InventoryBalanceTest.php:31-66](file://tests/Feature/InventoryBalanceTest.php#L31-L66)
+- [ItemBulkEditTest.php:27-67](file://tests/Feature/ItemBulkEditTest.php#L27-L67)
+- [ExternalBarangApiServiceTest.php:11-49](file://tests/Feature/ExternalBarangApiServiceTest.php#L11-L49)
 
 **Section sources**
 - [ProductionBatchTest.php:40-142](file://tests/Feature/ProductionBatchTest.php#L40-L142)
-- [ExternalBarangApiServiceTest.php:11-49](file://tests/Feature/ExternalBarangApiServiceTest.php#L11-L49)
 - [InventoryBalanceTest.php:31-66](file://tests/Feature/InventoryBalanceTest.php#L31-L66)
+- [ItemBulkEditTest.php:27-67](file://tests/Feature/ItemBulkEditTest.php#L27-L67)
+- [ExternalBarangApiServiceTest.php:11-49](file://tests/Feature/ExternalBarangApiServiceTest.php#L11-L49)
 
 ## Performance Considerations
 Recommended settings and practices:
@@ -355,10 +414,13 @@ Common issues and resolutions:
 - Flaky parallel tests: Confirm each test creates its own data, does not depend on run order, and avoids shared resources.
 - Unexpected exceptions reported externally: Enable `Exceptions::fake()` to capture and assert exception handling without side effects.
 - Misleading failures due to broad fakes: Replace wildcard fakes with exact endpoint matches.
+- Bulk action validation failures: Ensure proper form field validation and check that required fields are provided in bulk operations.
 
 **Section sources**
 - [isolation.md:16-46](file://.claude/skills/testing-best-practices/rules/isolation.md#L16-L46)
 - [performance.md:18-47](file://.claude/skills/testing-best-practices/rules/performance.md#L18-L47)
 
 ## Conclusion
-RSV Helmet’s testing strategy emphasizes observable behavior, strict isolation, and deterministic data. Feature tests validate user workflows through Filament and Livewire, while unit tests focus on framework-independent logic. External dependencies are isolated using fakes and mocks, and databases are tested with real queries against an in-memory SQLite instance. Factories provide clean, readable test data. Performance optimizations and CI automation ensure fast, reliable feedback loops. Following the established naming, assertion, and isolation rules will keep the suite maintainable and effective.
+RSV Helmet's testing strategy emphasizes observable behavior, strict isolation, and deterministic data. Feature tests validate user workflows through Filament and Livewire, including comprehensive bulk editing operations, while unit tests focus on framework-independent logic. External dependencies are isolated using fakes and mocks, and databases are tested with real queries against an in-memory SQLite instance. Factories provide clean, readable test data. Performance optimizations and CI automation ensure fast, reliable feedback loops. Following the established naming, assertion, and isolation rules will keep the suite maintainable and effective.
+
+The addition of comprehensive bulk editing test coverage demonstrates the robustness of the testing approach, validating complex user workflows that involve multiple database operations, validation rules, and user interface interactions through Filament's bulk action system.

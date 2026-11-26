@@ -1,1 +1,0 @@
-Laravel-based warehouse, inventory, production-batch, stock-opname, and item-request management application with a Filament admin panel and public request form.

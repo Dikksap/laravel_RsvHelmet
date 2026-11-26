@@ -3,10 +3,10 @@ schema_version: 1
 locale: en-US
 branch: master
 nodes_managed: true
-exported_at: "2026-11-25T07:12:33Z"
+exported_at: "2026-11-25T08:13:18Z"
 modules:
     "":
-        dir_name: RSV Helmet Inventory & Production Management (Laravel + Filament)_2
+        dir_name: RSV Helmet Inventory & Production Management (Laravel + Filament)
         title: RSV Helmet Inventory & Production Management (Laravel + Filament)
         scope: []
         source_files: []

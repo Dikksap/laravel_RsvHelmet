@@ -9,7 +9,16 @@
 - [StockMovementService.php](file://app/Services/StockMovementService.php)
 - [ProductStockExporter.php](file://app/Filament/Exports/ProductStockExporter.php)
 - [StockMovementTest.php](file://tests/Feature/StockMovementTest.php)
+- [Division.php](file://app/Models/Division.php)
+- [Item.php](file://app/Models/Item.php)
 </cite>
+
+## Update Summary
+**Changes Made**
+- Added new 'Divisi' (Division) column to display item division information
+- Implemented division filter using SelectFilter with relationship queries for department-based filtering
+- Updated filtering capabilities section to include division-based filtering
+- Enhanced table columns and filter configuration documentation
 
 ## Table of Contents
 1. [Introduction](#introduction)
@@ -24,7 +33,7 @@
 10. [Appendices](#appendices)
 
 ## Introduction
-The Stock Card view is a Filament page that displays inventory movements and running balance history for items across warehouses. It presents transactions on a timeline, categorizes movement types as incoming or outgoing, and calculates a real-time running balance per item and warehouse. The interface supports filtering by item, warehouse, and production batch, and it formats quantities according to the application locale.
+The Stock Card view is a Filament page that displays inventory movements and running balance history for items across warehouses. It presents transactions on a timeline, categorizes movement types as incoming or outgoing, and calculates a real-time running balance per item and warehouse. The interface supports filtering by item, division, warehouse, and production batch, and it formats quantities according to the application locale.
 
 This documentation explains how the stock card works, how balances are computed, how movement types are categorized, what filters are available, and how to extend the view with custom display formatting and export functionality.
 
@@ -36,7 +45,7 @@ The Stock Card feature is implemented as a Filament Page backed by an Eloquent m
 - **Model**: `App\Models\InventoryMovement` defines movement types, labels, direction helpers, and relationships.
 - **Service**: `App\Services\StockMovementService` records movements, updates balances, handles transfers, and enforces stock constraints.
 - **Balance Model**: `App\Models\InventoryBalance` stores current physical stock per item and warehouse.
-- **Export Example**: `App\Filament\Exports\ProductStockExporter.php` demonstrates how to add exports using Filament’s exporter pattern.
+- **Export Example**: `App\Filament/Exports/ProductStockExporter.php` demonstrates how to add exports using Filament's exporter pattern.
 
 ```mermaid
 graph TB
@@ -44,8 +53,9 @@ User["User"] --> AdminUI["Filament Admin UI"]
 AdminUI --> StockCardPage["StockCard Page<br/>Table + Filters"]
 StockCardPage --> InventoryMovementModel["InventoryMovement Model<br/>Types + Labels"]
 StockCardPage --> RunningBalanceSQL["Running Balance SQL<br/>Window Function"]
-StockCardPage --> WarehouseFilter["Warehouse Filter"]
 StockCardPage --> ItemFilter["Item Filter"]
+StockCardPage --> DivisionFilter["Division Filter<br/>Department-based"]
+StockCardPage --> WarehouseFilter["Warehouse Filter"]
 StockCardPage --> BatchFilter["Production Batch Filter"]
 InventoryMovementModel --> StockMovementService["StockMovementService<br/>Record / Transfer / Delete"]
 StockMovementService --> InventoryBalanceModel["InventoryBalance Model<br/>quantity_on_hand"]
@@ -71,7 +81,7 @@ Key responsibilities:
 - Timeline presentation: Ordered by `occurred_at` and `id`.
 - Movement categorization: Incoming vs outgoing based on type constants.
 - Real-time balance: Window-function running balance per item+warehouse.
-- Filtering: By item, warehouse, and production batch.
+- Filtering: By item, division, warehouse, and production batch.
 
 **Section sources**
 - [StockCard.php:38-127](file://app/Filament/Pages/StockCard.php#L38-L127)
@@ -110,10 +120,10 @@ Balance-->>Service : Updated quantity_on_hand
 ### StockCard Page
 The StockCard page configures a Filament table that:
 - Queries `inventory_movements` and adds a running balance column using a window function.
-- Displays columns for time, item code/name, warehouse, movement type badge, incoming/outcome quantities, running balance, production batch, reference, and note.
+- Displays columns for time, item code/name, division, warehouse, movement type badge, incoming/outcome quantities, running balance, production batch, reference, and note.
 - Formats numeric values using the application locale.
 - Colors movement types green for incoming and red for outgoing.
-- Provides filters for item, warehouse, and production batch.
+- Provides filters for item, division, warehouse, and production batch.
 - Sorts by time descending by default and paginates results.
 
 Timeline behavior:
@@ -126,6 +136,7 @@ Movement type categorization:
 
 Filters:
 - Item filter: Selectable list of stockable items.
+- Division filter: Relationship-based select with department-based filtering through item relationships.
 - Warehouse filter: Relationship-based select.
 - Production batch filter: Relationship-based searchable select with preload.
 
@@ -134,10 +145,12 @@ Customization points:
 - Change label text and formatting through column callbacks.
 - Extend filters by adding additional `SelectFilter` instances.
 
+**Updated** Added new division column and filter functionality for department-based filtering.
+
 ```mermaid
 flowchart TD
 Start(["Load Stock Card"]) --> BuildQuery["Build query with running_balance window"]
-BuildQuery --> ApplyFilters["Apply item, warehouse, batch filters"]
+BuildQuery --> ApplyFilters["Apply item, division, warehouse, batch filters"]
 ApplyFilters --> OrderRows["Order by occurred_at, id"]
 OrderRows --> FormatColumns["Format quantities and badges"]
 FormatColumns --> RenderTable["Render Filament table"]
@@ -246,7 +259,7 @@ Tests["StockMovementTest"] --> StockCardPage
 ## Performance Considerations
 - **Running Balance Calculation**: The window function computes the running balance server-side per item and warehouse. For large datasets, consider:
   - Adding indexes on `item_id`, `warehouse_id`, `occurred_at`, and `id` to optimize ordering and partitioning.
-  - Limiting the dataset with filters (item, warehouse, batch).
+  - Limiting the dataset with filters (item, division, warehouse, batch).
 - **Pagination**: The table paginates at 25/50/100 rows to reduce payload size.
 - **Locale Formatting**: Numeric formatting uses the application locale; avoid heavy computations in column formatters.
 - **Service Transactions**: Movement recording and deletion use database transactions to maintain consistency; keep these blocks minimal.
@@ -259,6 +272,7 @@ Common issues and resolutions:
 - **Incorrect Running Balance**: Verify that movements are ordered by `occurred_at` and `id`; check that filters are applied correctly.
 - **Insufficient Stock Errors**: When recording outgoing movements or transfers, the service validates against current balances and throws validation exceptions if stock would go negative.
 - **Batch Filtering Not Working**: Confirm that movements have a valid `production_batch_id`; the filter only matches non-null batch associations.
+- **Division Filter Not Showing Data**: Ensure items have assigned divisions; the division filter works through item relationships and will only show movements for items belonging to selected departments.
 
 Operational references:
 - Rendering test confirms the page responds successfully.
@@ -268,7 +282,7 @@ Operational references:
 - [StockMovementTest.php:314-336](file://tests/Feature/StockMovementTest.php#L314-L336)
 
 ## Conclusion
-The Stock Card view provides a clear, timeline-based ledger of inventory movements with accurate running balances per item and warehouse. Movement types are clearly categorized, and the interface supports practical filters for item, warehouse, and production batch. Extending the view with custom columns, filters, and exports follows established Filament patterns demonstrated in the codebase.
+The Stock Card view provides a clear, timeline-based ledger of inventory movements with accurate running balances per item and warehouse. Movement types are clearly categorized, and the interface supports practical filters for item, division, warehouse, and production batch. The addition of division-based filtering enables department-specific inventory tracking and reporting. Extending the view with custom columns, filters, and exports follows established Filament patterns demonstrated in the codebase.
 
 [No sources needed since this section summarizes without analyzing specific files]
 
@@ -276,7 +290,7 @@ The Stock Card view provides a clear, timeline-based ledger of inventory movemen
 
 ### Customizing Display Format
 To customize how data appears in the Stock Card:
-- Modify column definitions in the page’s table method to change labels, formatting, colors, and visibility.
+- Modify column definitions in the page's table method to change labels, formatting, colors, and visibility.
 - Use column callbacks to transform states, such as formatting quantities or mapping type codes to labels.
 - Toggle optional columns like batch, reference, and note to tailor the view for different audiences.
 
@@ -285,7 +299,7 @@ Reference path:
 
 ### Adding Export Functionality
 While the Stock Card itself does not include an export action, you can follow the existing exporter pattern to create a custom export for inventory movements or balances:
-- Define an exporter class extending Filament’s exporter base.
+- Define an exporter class extending Filament's exporter base.
 - Specify the model and columns to export.
 - Provide a synchronous job connection if queue workers are not available.
 - Optionally customize completion notifications.
@@ -296,9 +310,25 @@ Example reference:
 
 ### Filtering Capabilities Summary
 - **By Item**: Select from stockable items; supports search.
+- **By Division**: Department-based filtering through item relationships using SelectFilter with relationship queries.
 - **By Warehouse**: Relationship-based selection.
 - **By Production Batch**: Searchable relationship filter with preloading.
 - **Date Range**: Not currently provided by the Stock Card; could be added by introducing a date range filter on `occurred_at`.
 
+**Updated** Added division filtering capability for department-based inventory management.
+
 Reference path:
 - [StockCard.php:104-122](file://app/Filament/Pages/StockCard.php#L104-L122)
+
+### Division Integration Details
+The division feature integrates with the existing item hierarchy:
+- Items have a `division_id` foreign key linking to the Division model.
+- The division column displays the associated division name through the item relationship.
+- Division filtering uses a SelectFilter with a custom query builder to filter movements by item division.
+- The implementation leverages Eloquent relationships for efficient querying and data association.
+
+**Section sources**
+- [StockCard.php:68-72](file://app/Filament/Pages/StockCard.php#L68-L72)
+- [StockCard.php:121-133](file://app/Filament/Pages/StockCard.php#L121-L133)
+- [Item.php:81-84](file://app/Models/Item.php#L81-L84)
+- [Division.php:27-30](file://app/Models/Division.php#L27-L30)

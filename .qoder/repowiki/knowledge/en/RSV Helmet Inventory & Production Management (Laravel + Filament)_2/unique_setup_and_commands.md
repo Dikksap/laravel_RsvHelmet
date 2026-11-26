@@ -1,1 +1,0 @@
-`composer setup` runs composer install, copies `.env.example` to `.env`, generates the app key, runs migrations, installs npm packages, and builds assets. Development server: `composer dev`. Tests: `composer test` (clears config then runs phpunit). Production deployment uses `deploy.sh` with `Dockerfile.prod` and `docker-compose.prod.yml`.

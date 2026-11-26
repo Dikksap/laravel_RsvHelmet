@@ -6,54 +6,56 @@ scope:
     - '**'
 source_files:
     - config/logging.php
+    - .env.example
     - app/Services/ExternalBarangApiService.php
     - app/Services/ExternalBarangSyncService.php
-    - storage/logs/laravel.log
 ---
 
-## Overview
+## What System/Approach Is Used
 
-The application uses Laravel's built-in logging subsystem backed by **Monolog**. There is no custom logger wrapper or dedicated logging package — log calls go directly through the `Illuminate\Support\Facades\Log` facade.
+The application uses Laravel's built-in logging subsystem backed by **Monolog**. There is no custom logger wrapper or third-party logging framework — all log output goes through the `Illuminate\Support\Facades\Log` facade (aliased as `Log`). The configuration lives in `config/logging.php`, which defines a stack of channels that route messages to file, stderr, syslog, Slack, Papertrail, or null sinks.
 
-## Configuration (`config/logging.php`)
+## Key Files and Packages
 
-- Default channel: `stack`, composed from `LOG_STACK` (env, default `single`).
-- Deprecations are sent to a `null` channel by default (`LOG_DEPRECATIONS_CHANNEL=null`).
-- Available channels defined:
-  - `stack` — composes multiple child channels via `LOG_STACK`.
-  - `single` → `storage_path('logs/laravel.log')`, level from `LOG_LEVEL` (default `debug`), placeholder replacement enabled.
-  - `daily` / `monthly` — same path as single, with rotation (`max_files`).
-  - `slack` — webhook-based alerts at `critical` level; username/emoji configurable.
-  - `papertrail` — Monolog handler with `SyslogUdpHandler`, PSR message processor.
-  - `stderr` — streams to `php://stderr` with optional formatter and PSR processor.
-  - `syslog` / `errorlog` — standard OS sinks.
-  - `null` — `NullHandler` sink for discarding logs.
-  - `emergency` — fallback emergency writer to `storage_path('logs/laravel.log')`.
+- `config/logging.php` — central channel definitions (stack, single, daily, monthly, slack, papertrail, stderr, syslog, errorlog, null, emergency).
+- `.env.example` — default logging environment variables: `LOG_CHANNEL=stack`, `LOG_STACK=single`, `LOG_DEPRECATIONS_CHANNEL=null`, `LOG_LEVEL=debug`.
+- `storage/logs/laravel.log` — default file sink path (`storage_path('logs/laravel.log')`).
+- `app/Services/ExternalBarangApiService.php` — primary consumer of `Log::warning()` / `Log::error()` with contextual arrays.
+- `app/Services/ExternalBarangSyncService.php` — secondary consumer using `Log::error()`.
 
-All channels read their minimum level from `LOG_LEVEL`; Slack defaults to `critical`. Placeholder replacement (`replace_placeholders`) is enabled on every text-based channel.
+## Architecture and Conventions
 
-## Usage in Application Code
+**Channel strategy:**
+- The default channel is `stack` (from `env('LOG_CHANNEL', 'stack')`), which fans out to one or more child channels listed in `LOG_STACK` (default `'single'`).
+- The `single` channel writes to `storage/logs/laravel.log` at `debug` level with placeholder replacement enabled.
+- A `daily` channel is preconfigured with `max_files => env('LOG_DAILY_DAYS', 14)` for log rotation.
+- A `slack` channel exists but is not wired into the default stack; it targets `critical` level and reads webhook URL from `LOG_SLACK_WEBHOOK_URL`.
+- A `papertrail` channel uses Monolog's `SyslogUdpHandler` with `PsrLogMessageProcessor` for structured message interpolation.
+- A `stderr` channel writes via `StreamHandler` to `php://stderr`, also with `PsrLogMessageProcessor`.
+- Deprecation logs are disabled by default (`LOG_DEPRECATIONS_CHANNEL=null`).
 
-Only two service classes use logging, both under `app/Services/`:
+**Usage pattern in code:**
+- Log calls are made exclusively via the `Log` facade (`use Illuminate\Support\Facades\Log;`) inside service classes under `app/Services/`.
+- Messages use string templates plus an associative context array, e.g.:
+  ```php
+  Log::warning('ExternalBarangApiService: Gagal mengambil daftar barang', [
+      // contextual fields
+  ]);
+  ```
+- Only `warning` and `error` levels are used in the codebase; no `info`, `debug`, `notice`, `alert`, or `emergency` calls were found.
+- Context arrays carry domain-specific identifiers (e.g., item codes, API response fragments) alongside human-readable messages.
 
-- `ExternalBarangApiService` — imports `use Illuminate\Support\Facades\Log;` and emits:
-  - `Log::warning(...)` for non-success HTTP responses from the external barang API.
-  - `Log::error(...)` for connection failures and per-endpoint errors (`getBarangDetail`, `getRekapVariant`).
-- `ExternalBarangSyncService` — emits `Log::error(...)` when recording unit stock fails during sync.
+**Environment-driven behavior:**
+- `APP_DEBUG=true` in `.env.example` means debug-level logs are emitted locally.
+- `LOG_LEVEL=debug` sets the minimum threshold for all channels.
+- `LOG_STACK=single` routes the stack to the single-file channel by default.
+- Production deployments can switch `LOG_CHANNEL` to `daily`, `stderr`, `syslog`, or a multi-channel stack without code changes.
 
-Log messages follow a consistent prefix pattern: `<ClassName>: <human-readable description>` (e.g. `ExternalBarangApiService: Gagal mengambil daftar barang`). Context is passed as a second array argument with structured fields such as `status`, `body`, `error`, `kodeBarang`.
+## Conventions and Constraints
 
-No other files in the codebase call `Log::`, `logger()`, or import the Log facade. Controllers, Models, Filament resources, Livewire components, and most Services do not emit logs directly.
-
-## Output Files
-
-- `storage/logs/laravel.log` — primary file log (from `single`/`daily`/`monthly` channels).
-- `storage/logs/browser.log` — present but not configured by `logging.php` (likely produced by another tool or environment).
-
-## Conventions Observed
-
-1. Logging is centralized in `app/Services/*` rather than scattered across controllers or models.
-2. Log messages are prefixed with the originating class name for traceability.
-3. Structured context arrays are attached to error/warning calls instead of embedding data in the message string.
-4. The only levels used in application code are `warning` and `error`; no `info`, `debug`, `notice`, or `critical` calls were found.
-5. All log configuration is driven by environment variables (`LOG_CHANNEL`, `LOG_STACK`, `LOG_LEVEL`, `LOG_SLACK_*`, `LOG_PAPERTRAIL_*`, etc.) with sensible defaults.
+- **All log output flows through `Illuminate\Support\Facades\Log`** — no direct Monolog instantiation was observed in application code.
+- **Structured context is passed as associative arrays** to every `Log::warning()` / `Log::error()` call, enabling field-based filtering when downstream processors (like `PsrLogMessageProcessor`) are active.
+- **Placeholder replacement is enabled** on file-based channels (`replace_placeholders => true`), so `{foo}` tokens in messages are interpolated from context arrays.
+- **Deprecation logging is intentionally off** in the default environment (`LOG_DEPRECATIONS_CHANNEL=null`), preventing noisy deprecation warnings from polluting logs during development.
+- **No custom formatter or processor is registered** in this project — only the stock Monolog handlers and the PSR message processor are used.
+- **Log files are written to `storage/logs/`**, which is gitignored (`storage/logs/.gitignore` present), ensuring logs never enter version control.

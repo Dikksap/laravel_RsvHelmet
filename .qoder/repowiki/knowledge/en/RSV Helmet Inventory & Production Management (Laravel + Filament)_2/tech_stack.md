@@ -1,1 +1,0 @@
-Laravel 13 + PHP 8.3, Filament v5 admin panel, Livewire for the public item-request form, barryvdh/laravel-dompdf for PDF generation, mrpunyapal/filament-infinite-select and fibtegis/filament-infinite-scroll for large-table UX, Vite for asset compilation.

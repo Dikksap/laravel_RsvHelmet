@@ -1,6 +1,6 @@
-- Each Filament resource follows a fixed directory shape: `<Entity>Resource.php` plus a sibling `Pages/` folder containing `Create<Entity>.php`, `Edit<Entity>.php`, and `List<Entities>.php`.
-- Domain operations are delegated to dedicated classes under `App\Services\` (e.g. `BomExplosionService`, `StockMovementService`, `ExternalBarangSyncService`) rather than being implemented inside controllers or resources.
-- Import/Export capabilities for each Filament resource are provided as paired classes under `app/Filament/Imports/` and `app/Filament/Exports/` sharing the same entity name.
-- Migrations use timestamp-prefixed filenames grouped by feature area (warehouses, production batches, stock opnames, item requests, external integrations) and add columns to existing tables when evolving schemas.
-- Blade views for Filament custom pages live under `resources/views/filament/pages/` and share partials under `resources/views/filament/partials/` (auth-brand-panel, auth-lockup, infinite-scroll-spa-fix).
-- Public-facing interactive UI is built with Livewire components (`app/Livewire/`) backed by corresponding Blade templates under `resources/views/livewire/`, while static pages remain plain Blade.
+- Eloquent models declare fillable fields via the `#[Fillable([...])]` attribute rather than a `$fillable` property.
+- Numeric and boolean columns are typed through `protected function casts(): array` using `'decimal:N'` and `'boolean'` casts instead of relying on defaults.
+- Each domain entity has a matching factory class under `database/factories/` named `<Model>Factory.php` and imported via `use Database\Factories\<Model>Factory;`.
+- Filament resources follow the per-entity directory layout `Resources/<Entity>/Pages/{Create,Edit,List}<Entity>.php` plus a `<Entity>Resource.php` root, with related sub-resources placed in `RelationManagers/`.
+- Navigation groups in `AdminPanelProvider` are organized into five collapsible sections: Gudang, Permintaan Barang, Produksi, Integrasi Eksternal, and Data Master.
+- Business operations are implemented as plain PHP classes under `app/Services/` returning `Collection` or arrays, keeping models free of orchestration logic.
