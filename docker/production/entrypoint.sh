@@ -15,6 +15,9 @@ mkdir -p /var/www/html/storage/framework/cache/data \
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
+# Nginx workers run as www-data; Alpine ships nginx temp/body dirs owned by "nginx".
+chown -R www-data:www-data /var/lib/nginx /var/log/nginx 2>/dev/null || true
+
 # Ensure storage symlink exists and resolves (dangling links are recreated)
 if [ ! -e /var/www/html/public/storage ]; then
     echo "==> Creating storage symlink..."
