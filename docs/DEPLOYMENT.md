@@ -10,6 +10,7 @@ Dokumentasi ini menjelaskan konfigurasi Docker siap produksi (*production-ready*
 - **Container App**: Nginx + PHP 8.4-FPM berbasis Alpine yang diatur oleh Supervisor dalam 1 container mandiri.
 - **Port Production**: `8001:80` (Aplikasi diakses pada `http://192.168.1.168:8001/admin`).
 - **Container Database**: MariaDB 11 pada network terisolasi dengan volume persisten `rsv_helmet_db_data`.
+- **Volume Upload**: `rsv_helmet_app_storage` di-mount ke `/var/www/html/storage/app/public` untuk menyimpan berkas unggahan publik (misalnya gambar barang pada `items/`). Simlink `public/storage` dibuat otomatis oleh `entrypoint.sh` ketika container start; menghapus volume ini akan menghilangkan seluruh gambar barang.
 
 ---
 

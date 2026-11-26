@@ -15,10 +15,10 @@ mkdir -p /var/www/html/storage/framework/cache/data \
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Ensure storage symlink exists
-if [ ! -L /var/www/html/public/storage ]; then
+# Ensure storage symlink exists and resolves (dangling links are recreated)
+if [ ! -e /var/www/html/public/storage ]; then
     echo "==> Creating storage symlink..."
-    php artisan storage:link || true
+    php artisan storage:link --force || true
 fi
 
 # Run database migrations if requested

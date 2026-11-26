@@ -14,6 +14,7 @@ storage/framework/views/*
 storage/app/*
 !storage/app/.gitignore
 !storage/app/public/.gitignore
+public/storage
 .env
 .env.backup
 .env.production
