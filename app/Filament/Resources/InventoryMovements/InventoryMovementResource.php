@@ -208,8 +208,9 @@ class InventoryMovementResource extends Resource
                             ->visible(fn (Get $get): bool => self::isExternalMode($get)),
                         Select::make('external_status')
                             ->label('Status unit eksternal')
-                            ->options(fn (ExternalBarangApiService $apiService): array => self::externalStatusOptions($apiService))
-                            ->default('FINISHGOOD')
+                            ->options(fn (ExternalBarangApiService $apiService): array => $apiService->getStatusOptions(forSync: true))
+                            ->placeholder('Pilih status dari API eksternal')
+                            ->helperText('Jika daftar status kosong, tidak ada status yang dapat disinkronkan saat ini.')
                             ->live()
                             ->afterStateUpdated(fn (Get $get, Set $set) => self::refreshExternalQuantities($get, $set))
                             ->required(fn (Get $get): bool => self::isExternalMode($get))
@@ -393,34 +394,12 @@ class InventoryMovementResource extends Resource
             && (bool) $get('source_external');
     }
 
-    /**
-     * @return array<string, string>
-     */
-    private static function externalStatusOptions(ExternalBarangApiService $apiService): array
-    {
-        $statuses = $apiService->getRekapVariant()['statuses'] ?? [];
-        $excluded = array_map(
-            'strtoupper',
-            config('services.external_barang.excluded_statuses', ['REGISTER']),
-        );
-
-        $available = array_values(array_diff(
-            array_map('strtoupper', $statuses),
-            $excluded,
-        ));
-
-        if ($available === []) {
-            $available = ['FINISHGOOD'];
-        }
-
-        return array_combine($available, $available);
-    }
-
     private static function refreshExternalQuantities(Get $get, Set $set): void
     {
         $batchCode = trim((string) $get('external_batch_code'));
+        $status = $get('external_status');
 
-        if ($batchCode === '') {
+        if ($batchCode === '' || blank($status)) {
             $set('external_quantities', []);
 
             return;
@@ -430,7 +409,7 @@ class InventoryMovementResource extends Resource
             $batchCode,
             filled($get('tanggal_awal')) ? (string) $get('tanggal_awal') : null,
             filled($get('tanggal_akhir')) ? (string) $get('tanggal_akhir') : null,
-            filled($get('external_status')) ? (string) $get('external_status') : 'FINISHGOOD',
+            $status,
         );
 
         $set('external_quantities', collect($preview['groups'])
@@ -446,10 +425,16 @@ class InventoryMovementResource extends Resource
 
     private static function externalPreview(Get $get): HtmlString
     {
+        $status = $get('external_status');
+
+        if (blank($status)) {
+            return new HtmlString('Pilih status unit eksternal untuk melihat ringkasan unit dari API.');
+        }
+
         $batchCode = trim((string) $get('external_batch_code'));
 
         if ($batchCode !== '') {
-            return self::externalBatchPreview($get, $batchCode);
+            return self::externalBatchPreview($get, $batchCode, $status);
         }
 
         $variantId = (int) $get('external_variant_id');
@@ -467,8 +452,6 @@ class InventoryMovementResource extends Resource
         if (! $mapping?->item) {
             return new HtmlString('<span style="color:#dc2626;font-weight:600">Varian ini belum dipetakan ke barang RSV.</span>');
         }
-
-        $status = filled($get('external_status')) ? (string) $get('external_status') : 'FINISHGOOD';
 
         $count = app(ExternalBarangSyncService::class)->countEligibleUnits(
             $variantId,
@@ -488,13 +471,13 @@ class InventoryMovementResource extends Resource
         );
     }
 
-    private static function externalBatchPreview(Get $get, string $batchCode): HtmlString
+    private static function externalBatchPreview(Get $get, string $batchCode, string $status): HtmlString
     {
         $preview = app(ExternalBarangSyncService::class)->previewBatchOutput(
             $batchCode,
             filled($get('tanggal_awal')) ? (string) $get('tanggal_awal') : null,
             filled($get('tanggal_akhir')) ? (string) $get('tanggal_akhir') : null,
-            filled($get('external_status')) ? (string) $get('external_status') : 'FINISHGOOD',
+            $status,
         );
 
         if ($preview['total_units'] === 0) {

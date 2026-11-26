@@ -70,7 +70,7 @@ class CreateInventoryMovement extends CreateRecord
                 'production_batch_id' => $data['production_batch_id'] ?? null,
                 'tanggal_awal' => $data['tanggal_awal'] ?? null,
                 'tanggal_akhir' => $data['tanggal_akhir'] ?? null,
-                'status' => $data['external_status'] ?? 'FINISHGOOD',
+                'status' => $data['external_status'],
                 'occurred_at' => $data['occurred_at'] ?? now(),
                 'quantities' => collect($data['external_quantities'] ?? [])
                     ->mapWithKeys(fn (array $row): array => [
@@ -100,7 +100,7 @@ class CreateInventoryMovement extends CreateRecord
                 'production_batch_id' => $data['production_batch_id'] ?? null,
                 'tanggal_awal' => $data['tanggal_awal'] ?? null,
                 'tanggal_akhir' => $data['tanggal_akhir'] ?? null,
-                'status' => $data['external_status'] ?? 'FINISHGOOD',
+                'status' => $data['external_status'],
                 'occurred_at' => $data['occurred_at'] ?? now(),
                 'quantity' => $data['external_quantity'] ?? null,
             ],

@@ -116,9 +116,11 @@ class ExternalBarangSyncService
                     continue;
                 }
 
-                // 2. Cek idempotensi: jika kodeBarang sudah pernah disinkronkan -> lewati
+                // 2. Cek idempotensi: jika kodeBarang sudah pernah disinkronkan
+                // dengan transaksi stok yang masih ada -> lewati
                 $alreadySynced = ExternalSyncedBarang::query()
                     ->where('kode_barang', $kodeBarang)
+                    ->whereNotNull('inventory_movement_id')
                     ->exists();
 
                 if ($alreadySynced) {
@@ -248,7 +250,7 @@ class ExternalBarangSyncService
         $productionBatch = $this->resolveProductionBatch($options['production_batch_id'] ?? null);
 
         $status = filled($options['status'] ?? null)
-            ? strtoupper(trim((string) $options['status']))
+            ? trim((string) $options['status'])
             : 'FINISHGOOD';
 
         $occurredAt = filled($options['occurred_at'] ?? null)
@@ -346,6 +348,8 @@ class ExternalBarangSyncService
      * Tarik seluruh unit baru dari satu kode batch eksternal, lalu catat
      * satu transaksi hasil produksi untuk setiap barang RSV yang terpetakan.
      *
+     * Opsi `max_units` membatasi total unit yang ditarik di seluruh barang.
+     *
      * @param  array<string, mixed>  $options
      * @return array{
      *     synced_count: int,
@@ -368,7 +372,7 @@ class ExternalBarangSyncService
         $productionBatch = $this->resolveProductionBatch($options['production_batch_id'] ?? null);
 
         $status = filled($options['status'] ?? null)
-            ? strtoupper(trim((string) $options['status']))
+            ? trim((string) $options['status'])
             : 'FINISHGOOD';
 
         $occurredAt = filled($options['occurred_at'] ?? null)
@@ -410,6 +414,35 @@ class ExternalBarangSyncService
             ->filter(fn (array $group): bool => $group['quantity'] > 0)
             ->values()
             ->all();
+
+        // Batasi total unit yang ditarik di seluruh barang bila operator
+        // mengisi jumlah maksimum; kelompok dipangkas sesuai urutan API.
+        $maxUnits = filled($options['max_units'] ?? null) ? max(0, (int) $options['max_units']) : null;
+
+        if ($maxUnits !== null) {
+            $remaining = $maxUnits;
+
+            $groups = collect($groups)
+                ->map(function (array $group) use (&$remaining): array {
+                    if ($remaining <= 0) {
+                        $group['quantity'] = 0;
+                        $group['units'] = [];
+
+                        return $group;
+                    }
+
+                    $quantity = min($group['quantity'], $remaining);
+                    $remaining -= $quantity;
+
+                    $group['quantity'] = $quantity;
+                    $group['units'] = array_slice($group['units'], 0, $quantity);
+
+                    return $group;
+                })
+                ->filter(fn (array $group): bool => $group['quantity'] > 0)
+                ->values()
+                ->all();
+        }
 
         if ($groups === []) {
             throw ValidationException::withMessages([
@@ -607,7 +640,8 @@ class ExternalBarangSyncService
         }
 
         $excludedStatuses = $this->excludedStatuses();
-        $status = filled($status) ? strtoupper(trim((string) $status)) : null;
+        $status = filled($status) ? trim($status) : null;
+        $normalizedStatus = $status === null ? null : strtoupper($status);
         $awal = filled($tanggalAwal) ? Carbon::parse($tanggalAwal)->startOfDay() : null;
         $akhir = filled($tanggalAkhir) ? Carbon::parse($tanggalAkhir)->endOfDay() : null;
         $batchCode = filled($batchCode) ? trim((string) $batchCode) : null;
@@ -650,7 +684,7 @@ class ExternalBarangSyncService
                     continue;
                 }
 
-                if (filled($status) && $unitStatus !== $status) {
+                if ($normalizedStatus !== null && $unitStatus !== $normalizedStatus) {
                     continue;
                 }
 

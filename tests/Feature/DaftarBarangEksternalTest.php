@@ -4,11 +4,14 @@ namespace Tests\Feature;
 
 use App\Filament\Pages\DaftarBarangEksternal;
 use App\Models\ExternalItemMapping;
+use App\Models\ExternalSyncedBarang;
+use App\Models\InventoryMovement;
 use App\Models\Item;
 use App\Models\ProductionBatch;
 use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -150,7 +153,7 @@ class DaftarBarangEksternalTest extends TestCase
         Http::fake([
             '*api/public/barang/rekap-variant*' => Http::response([
                 'data' => [],
-                'statuses' => [],
+                'statuses' => ['REGISTER', 'QualityApproved'],
                 'total' => 0,
             ], 200),
             '*api/public/barang*' => Http::response([
@@ -159,8 +162,21 @@ class DaftarBarangEksternalTest extends TestCase
                         'id' => 201,
                         'kodeBarang' => 'BC001-WB005-181126-0201',
                         'variantId' => 5,
-                        'status' => 'FINISHGOOD',
+                        'status' => 'QualityApproved',
                         'tanggal' => '2026-11-23T10:00:00.000Z',
+                    ],
+                    [
+                        'id' => 202,
+                        'kodeBarang' => 'BC001-WB005-181126-0202',
+                        'variantId' => 5,
+                        'status' => 'QualityApproved',
+                        'tanggal' => '2026-11-23T11:00:00.000Z',
+                    ],
+                    [
+                        'id' => 203,
+                        'kodeBarang' => 'BC001-WB005-181126-0203',
+                        'variantId' => 5,
+                        'status' => 'FINISHGOOD',
                     ],
                 ],
                 'meta' => ['totalPages' => 1],
@@ -170,11 +186,22 @@ class DaftarBarangEksternalTest extends TestCase
         Livewire::test(DaftarBarangEksternal::class)
             ->callAction('sinkron_stok_global', data: [
                 'production_batch_id' => $batch->getKey(),
+                'external_batch_code' => 'BC001',
+                'external_status' => 'QualityApproved',
                 'warehouse_id' => $warehouse->getKey(),
-                'all_pages' => false,
-                'dry_run' => false,
+                'max_units' => null,
             ])
             ->assertNotified();
+
+        Http::assertSent(function (Request $request): bool {
+            parse_str((string) parse_url($request->url(), PHP_URL_QUERY), $query);
+
+            return ($query['status'] ?? null) === 'QualityApproved';
+        });
+
+        $this->assertDatabaseMissing('external_synced_barangs', [
+            'kode_barang' => 'BC001-WB005-181126-0203',
+        ]);
 
         $this->assertDatabaseHas('external_synced_barangs', [
             'kode_barang' => 'BC001-WB005-181126-0201',
@@ -182,9 +209,34 @@ class DaftarBarangEksternalTest extends TestCase
             'production_batch_id' => $batch->getKey(),
         ]);
 
-        $this->assertDatabaseHas('inventory_movements', [
-            'reference' => 'BC001-WB005-181126-0201',
-            'production_batch_id' => $batch->getKey(),
+        // Unit batch diagregasi menjadi satu transaksi per barang RSV.
+        $movement = InventoryMovement::query()->sole();
+
+        $this->assertSame(InventoryMovement::TYPE_IN_PRODUCTION, $movement->type);
+        $this->assertSame($batch->getKey(), $movement->production_batch_id);
+        $this->assertSame('BATCH-SYNC-01 / WB005', $movement->reference);
+        $this->assertEquals(2.0, (float) $movement->quantity);
+        $this->assertSame(2, ExternalSyncedBarang::query()->count());
+    }
+
+    public function test_sync_requires_explicit_status_when_api_statuses_are_unavailable(): void
+    {
+        $warehouse = Warehouse::factory()->create();
+        $batch = ProductionBatch::factory()->create();
+
+        Http::fake([
+            '*api/public/barang/rekap-variant*' => Http::response([], 503),
         ]);
+
+        Livewire::test(DaftarBarangEksternal::class)
+            ->callAction('sinkron_stok_global', data: [
+                'production_batch_id' => $batch->getKey(),
+                'external_batch_code' => 'BC001',
+                'warehouse_id' => $warehouse->getKey(),
+            ])
+            ->assertHasActionErrors(['external_status' => 'required']);
+
+        Http::assertNotSent(fn (Request $request): bool => ! str_contains($request->url(), '/rekap-variant'));
+        $this->assertDatabaseEmpty('inventory_movements');
     }
 }

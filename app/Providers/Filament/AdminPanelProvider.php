@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Auth\Login;
 use App\Filament\Pages\Dashboard;
+use App\Filament\Widgets\DashboardStatsOverview;
 use App\Filament\Widgets\OutOfStockItemsTable;
 use App\Filament\Widgets\RecentMovementsTable;
 use Filament\Http\Middleware\Authenticate;
@@ -66,6 +67,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
+                DashboardStatsOverview::class,
                 RecentMovementsTable::class,
                 OutOfStockItemsTable::class,
             ])

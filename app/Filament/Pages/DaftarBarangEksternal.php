@@ -16,15 +16,19 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
+use Filament\Support\Exceptions\Halt;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\HtmlString;
+use Illuminate\Validation\ValidationException;
 use UnitEnum;
 
 class DaftarBarangEksternal extends Page implements HasForms
@@ -94,12 +98,7 @@ class DaftarBarangEksternal extends Page implements HasForms
                         Select::make('status_filter')
                             ->label('Filter Status')
                             ->placeholder('Semua Status')
-                            ->options(function (ExternalBarangApiService $apiService): array {
-                                $rekap = $apiService->getRekapVariant();
-                                $statuses = $rekap['statuses'] ?? ['REGISTER', 'FINISHGOOD', 'OUT', 'RETUR', 'BAD'];
-
-                                return array_combine($statuses, $statuses);
-                            }),
+                            ->options(fn (ExternalBarangApiService $apiService): array => $apiService->getStatusOptions()),
                     ]),
             ])
             ->statePath('filterData');
@@ -158,6 +157,7 @@ class DaftarBarangEksternal extends Page implements HasForms
             ->keyBy('external_variant_id');
 
         $syncedCounts = ExternalSyncedBarang::query()
+            ->whereNotNull('inventory_movement_id')
             ->selectRaw('DATE(external_occurred_at) as tgl, external_variant_id, COUNT(*) as count')
             ->groupBy('tgl', 'external_variant_id')
             ->get();
@@ -285,9 +285,18 @@ class DaftarBarangEksternal extends Page implements HasForms
                         })
                         ->helperText('Semua unit yang disinkronkan akan dicatat sebagai hasil produksi batch ini.'),
                     TextInput::make('external_batch_code')
-                        ->label('Kode Batch Eksternal (opsional)')
+                        ->label('Kode Batch Eksternal')
                         ->placeholder('Contoh: BC001')
-                        ->helperText('Isi untuk membatasi sinkronisasi pada satu kode batch eksternal. Kosongkan untuk semua batch.'),
+                        ->required()
+                        ->live(debounce: 500)
+                        ->helperText('Semua unit batch ini akan ditarik menjadi satu transaksi per barang RSV.'),
+                    Select::make('external_status')
+                        ->label('Status Unit')
+                        ->options(fn (ExternalBarangApiService $apiService): array => $apiService->getStatusOptions(forSync: true))
+                        ->placeholder('Pilih status dari API eksternal')
+                        ->helperText('Jika daftar status kosong, tidak ada status yang dapat disinkronkan saat ini.')
+                        ->required()
+                        ->live(),
                     Select::make('warehouse_id')
                         ->label('Gudang Tujuan')
                         ->options(fn (): array => Warehouse::query()
@@ -299,30 +308,59 @@ class DaftarBarangEksternal extends Page implements HasForms
                             ?? Warehouse::query()->where('is_active', true)->orderBy('name')->value('id'))
                         ->required()
                         ->searchable()
-                        ->helperText('Stok unit helm finish good akan ditambahkan ke gudang ini.'),
-                    Toggle::make('all_pages')
-                        ->label('Tarik Semua Halaman Paginasi')
-                        ->default(true),
-                    Toggle::make('dry_run')
-                        ->label('Simulasi (Dry Run)')
-                        ->default(false),
+                        ->helperText('Unit dengan status yang dipilih akan ditambahkan ke gudang ini.'),
+                    TextInput::make('max_units')
+                        ->label('Jumlah unit (opsional)')
+                        ->numeric()
+                        ->integer()
+                        ->minValue(1)
+                        ->helperText('Kosongkan untuk menarik semua unit batch.'),
+                    TextEntry::make('external_preview')
+                        ->label('Ringkasan Unit Batch')
+                        ->visible(fn (Get $get): bool => filled($get('external_batch_code')))
+                        ->html()
+                        ->columnSpanFull()
+                        ->state(fn (Get $get): HtmlString => $this->externalBatchPreview($get)),
                 ])
                 ->action(function (array $data, ExternalBarangSyncService $syncService): void {
                     $warehouse = Warehouse::query()->findOrFail($data['warehouse_id']);
-                    $batch = ProductionBatch::query()->findOrFail($data['production_batch_id']);
 
-                    $result = $syncService->sync($warehouse, [
-                        'all_pages' => (bool) ($data['all_pages'] ?? true),
-                        'dry_run' => (bool) ($data['dry_run'] ?? false),
-                        'production_batch_id' => $batch->getKey(),
-                        'batch_code' => $data['external_batch_code'] ?? null,
-                    ]);
+                    try {
+                        $result = $syncService->syncBatchOutput(
+                            $warehouse,
+                            trim((string) $data['external_batch_code']),
+                            [
+                                'production_batch_id' => $data['production_batch_id'],
+                                'status' => $data['external_status'],
+                                'max_units' => $data['max_units'] ?? null,
+                            ],
+                        );
 
-                    Notification::make()
-                        ->title($result['dry_run'] ? 'Simulasi Selesai' : 'Sinkronisasi Selesai')
-                        ->body($result['message'].' Batch: '.$batch->batch_code.'.')
-                        ->success()
-                        ->send();
+                        $unmappedWarning = $result['unmapped'] === []
+                            ? ''
+                            : sprintf(' %d varian belum dipetakan dan dilewati.', count($result['unmapped']));
+
+                        Notification::make()
+                            ->title('Sinkronisasi Selesai')
+                            ->body(sprintf(
+                                '%d unit masuk stok ke %s dalam %d transaksi.%s',
+                                $result['synced_count'],
+                                $warehouse->name,
+                                count($result['movements']),
+                                $unmappedWarning,
+                            ))
+                            ->success()
+                            ->send();
+                    } catch (ValidationException $exception) {
+                        Notification::make()
+                            ->title('Sinkronisasi gagal')
+                            ->body(collect($exception->errors())->flatten()->first())
+                            ->danger()
+                            ->persistent()
+                            ->send();
+
+                        throw new Halt;
+                    }
                 }),
 
             Action::make('petakan_varian_modal')
@@ -385,5 +423,41 @@ class DaftarBarangEksternal extends Page implements HasForms
                         ->send();
                 }),
         ];
+    }
+
+    private function externalBatchPreview(Get $get): HtmlString
+    {
+        $batchCode = trim((string) $get('external_batch_code'));
+        $status = $get('external_status');
+
+        if ($batchCode === '' || blank($status)) {
+            return new HtmlString('Isi kode batch dan pilih status untuk melihat ringkasan unit dari API.');
+        }
+
+        $preview = app(ExternalBarangSyncService::class)->previewBatchOutput($batchCode, status: $status);
+
+        if ($preview['total_units'] === 0) {
+            return new HtmlString('<span style="color:#dc2626;font-weight:600">Tidak ada unit baru untuk kode batch '.e($batchCode).'.</span>');
+        }
+
+        $groups = collect($preview['groups'])
+            ->map(fn (array $group): string => e($group['external_variant_code'] ?? '#'.$group['external_variant_id'])
+                .' — '.e($group['item_code'].' '.$group['item_name'])
+                .': <strong>'.count($group['units']).'</strong> unit')
+            ->implode('<br>');
+
+        $unmapped = collect($preview['unmapped'])
+            ->map(fn (array $variant): string => e($variant['external_variant_code'] ?? '#'.$variant['external_variant_id'])
+                .' ('.$variant['unit_count'].' unit)')
+            ->implode(', ');
+
+        return new HtmlString(
+            '<div style="font-size:0.875rem">Total unit siap masuk: <strong>'.$preview['total_units'].'</strong>'
+            .'<br>'.$groups
+            .($unmapped !== ''
+                ? '<div style="color:#b45309">Varian belum dipetakan (dilewati): '.$unmapped.'</div>'
+                : '')
+            .'</div>'
+        );
     }
 }

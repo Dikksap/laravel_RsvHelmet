@@ -104,6 +104,38 @@ class ExternalBarangApiServiceTest extends TestCase
         $this->assertSame('WB005', $result['data'][0]['kodeVariant']);
     }
 
+    public function test_status_options_use_api_values_and_only_exclude_configured_statuses_from_sync(): void
+    {
+        config(['services.external_barang.excluded_statuses' => ['Register', 'QUALITYHOLD']]);
+
+        Http::fake([
+            '*api/public/barang/rekap-variant*' => Http::response([
+                'statuses' => ['REGISTER', 'QualityHold', 'QualityApproved'],
+            ]),
+        ]);
+
+        $api = new ExternalBarangApiService;
+
+        $this->assertSame([
+            'REGISTER' => 'REGISTER',
+            'QualityHold' => 'QualityHold',
+            'QualityApproved' => 'QualityApproved',
+        ], $api->getStatusOptions());
+        $this->assertSame(['QualityApproved' => 'QualityApproved'], $api->getStatusOptions(forSync: true));
+    }
+
+    public function test_status_options_are_empty_when_api_does_not_return_statuses(): void
+    {
+        Http::fake([
+            '*api/public/barang/rekap-variant*' => Http::response(['data' => []]),
+        ]);
+
+        $api = new ExternalBarangApiService;
+
+        $this->assertSame([], $api->getStatusOptions());
+        $this->assertSame([], $api->getStatusOptions(forSync: true));
+    }
+
     public function test_fetch_available_variants_extracts_unique_variants(): void
     {
         Http::fake([

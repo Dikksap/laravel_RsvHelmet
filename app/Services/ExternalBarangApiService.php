@@ -109,6 +109,32 @@ class ExternalBarangApiService
     }
 
     /**
+     * @return array<string, string>
+     */
+    public function getStatusOptions(bool $forSync = false): array
+    {
+        $statuses = $this->getRekapVariant()['statuses'] ?? [];
+        $excluded = $forSync
+            ? array_map('strtoupper', config('services.external_barang.excluded_statuses', []))
+            : [];
+        $options = [];
+
+        foreach ($statuses as $status) {
+            if (! is_string($status) || trim($status) === '') {
+                continue;
+            }
+
+            $status = trim($status);
+
+            if (! in_array(strtoupper($status), $excluded, true)) {
+                $options[$status] = $status;
+            }
+        }
+
+        return $options;
+    }
+
+    /**
      * Ambil daftar varian unik dari endpoint rekap atau daftar barang
      * untuk mempermudah pemetaan varian di sistem.
      *

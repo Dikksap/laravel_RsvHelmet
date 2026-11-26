@@ -2,11 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Widgets\DashboardStatsOverview;
 use App\Filament\Widgets\OutOfStockItemsTable;
 use App\Filament\Widgets\RecentMovementsTable;
 use App\Models\InventoryBalance;
 use App\Models\InventoryMovement;
 use App\Models\Item;
+use App\Models\ItemRequest;
+use App\Models\ProductionBatch;
 use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -32,6 +35,40 @@ class DashboardTest extends TestCase
             ->assertDontSee('Progres batch produksi')
             ->assertDontSee('Laporan realisasi')
             ->assertDontSee('Batch baru');
+    }
+
+    public function test_dashboard_stats_overview_shows_counts(): void
+    {
+        $item = Item::factory()->create();
+        Item::factory()->count(2)->create();
+        $warehouse = Warehouse::factory()->create();
+
+        InventoryMovement::factory()->count(2)->create([
+            'item_id' => $item->getKey(),
+            'warehouse_id' => $warehouse->getKey(),
+            'occurred_at' => now(),
+        ]);
+        InventoryMovement::factory()->create([
+            'item_id' => $item->getKey(),
+            'warehouse_id' => $warehouse->getKey(),
+            'occurred_at' => now()->subDay(),
+        ]);
+
+        ProductionBatch::factory()->create(['status' => ProductionBatch::STATUS_RUNNING]);
+        ProductionBatch::factory()->create(['status' => ProductionBatch::STATUS_COMPLETED]);
+
+        ItemRequest::factory()->count(3)->create();
+        ItemRequest::factory()->create(['status' => ItemRequest::STATUS_PROCESSING]);
+
+        Livewire::test(DashboardStatsOverview::class)
+            ->assertSeeText('Total barang')
+            ->assertSeeText('3')
+            ->assertSeeText('Transaksi hari ini')
+            ->assertSeeText('2')
+            ->assertSeeText('Batch berjalan')
+            ->assertSeeText('1')
+            ->assertSeeText('Permintaan baru')
+            ->assertSeeText('4');
     }
 
     public function test_dashboard_widgets_render_their_titles(): void
