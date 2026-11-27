@@ -7,6 +7,7 @@ use App\Filament\Pages\Dashboard;
 use App\Filament\Widgets\DashboardStatsOverview;
 use App\Filament\Widgets\OutOfStockItemsTable;
 use App\Filament\Widgets\RecentMovementsTable;
+use App\Http\Controllers\DeliveryPdfController;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -23,6 +24,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Route;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -47,6 +49,8 @@ class AdminPanelProvider extends PanelProvider
                     ->collapsible(),
                 NavigationGroup::make('Permintaan Barang')
                     ->collapsible(),
+                NavigationGroup::make('Pengiriman')
+                    ->collapsible(),
                 NavigationGroup::make('Produksi')
                     ->collapsible(),
                 NavigationGroup::make('Integrasi Eksternal')
@@ -60,6 +64,10 @@ class AdminPanelProvider extends PanelProvider
                     ->url(fn (): string => url('/'))
                     ->sort(-1),
             ])
+            ->authenticatedRoutes(function (): void {
+                Route::get('pengiriman/{delivery}/surat-jalan', DeliveryPdfController::class)
+                    ->name('deliveries.pdf');
+            })
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([

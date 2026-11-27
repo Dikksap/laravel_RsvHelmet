@@ -41,7 +41,11 @@ return [
         'public' => [
             'driver' => 'local',
             'root' => storage_path('app/public'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage',
+            // URL relatif supaya berkas tetap satu origin dengan halaman yang
+            // sedang dibuka (localhost, 127.0.0.1, atau domain produksi). URL
+            // absolut dari APP_URL membuat FilePond gagal fetch pratinjau
+            // gambar karena dianggap beda origin (CORS).
+            'url' => env('FILESYSTEM_PUBLIC_URL', '/storage'),
             'visibility' => 'public',
             'throw' => false,
             'report' => false,

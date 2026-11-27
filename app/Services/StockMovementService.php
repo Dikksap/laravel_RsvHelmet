@@ -34,6 +34,7 @@ class StockMovementService
                 'production_batch_id',
                 'stock_opname_id',
                 'item_request_id',
+                'delivery_id',
                 'vendor_id',
                 'transfer_group_id',
                 'parent_movement_id',

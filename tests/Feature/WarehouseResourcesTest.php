@@ -11,6 +11,7 @@ use App\Filament\Pages\InventoryBalanceSummary;
 use App\Filament\Pages\ItemRequestSettings;
 use App\Filament\Pages\StockCard;
 use App\Filament\Resources\Brands\BrandResource;
+use App\Filament\Resources\Deliveries\DeliveryResource;
 use App\Filament\Resources\Divisions\DivisionResource;
 use App\Filament\Resources\Divisions\Pages\CreateDivision;
 use App\Filament\Resources\ExternalItemMappings\ExternalItemMappingResource;
@@ -91,6 +92,7 @@ class WarehouseResourcesTest extends TestCase
             StockOpnameResource::class => ['Gudang', 'Stok Opname'],
             ItemRequestResource::class => ['Permintaan Barang', 'Daftar Permintaan'],
             ItemRequestSettings::class => ['Permintaan Barang', 'Pengaturan Permintaan'],
+            DeliveryResource::class => ['Pengiriman', 'Daftar Pengiriman'],
             ProductionBatchResource::class => ['Produksi', 'Batch Produksi'],
             BomBuilder::class => ['Produksi', 'Komposisi Barang'],
             BatchRealization::class => ['Produksi', 'Laporan Realisasi'],
@@ -111,7 +113,7 @@ class WarehouseResourcesTest extends TestCase
         $groups = Filament::getPanel('admin')->getNavigationGroups();
 
         $this->assertSame(
-            ['Gudang', 'Permintaan Barang', 'Produksi', 'Integrasi Eksternal', 'Data Master'],
+            ['Gudang', 'Permintaan Barang', 'Pengiriman', 'Produksi', 'Integrasi Eksternal', 'Data Master'],
             array_map(fn (NavigationGroup $group): string => (string) $group->getLabel(), $groups),
         );
 
@@ -167,6 +169,7 @@ class WarehouseResourcesTest extends TestCase
             'Kartu Stok',
             'Daftar Permintaan',
             'Pengaturan Permintaan',
+            'Daftar Pengiriman',
             'Batch Produksi',
             'Komposisi Barang',
             'Laporan Realisasi',

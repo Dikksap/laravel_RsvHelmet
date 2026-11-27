@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'production_batch_id',
     'stock_opname_id',
     'item_request_id',
+    'delivery_id',
     'vendor_id',
     'transfer_group_id',
     'parent_movement_id',
@@ -38,6 +39,8 @@ class InventoryMovement extends Model
     public const TYPE_OUT_PRODUCTION = 'out_production';
 
     public const TYPE_OUT_OTHER = 'out_other';
+
+    public const TYPE_OUT_DELIVERY = 'out_delivery';
 
     public const TYPE_TRANSFER = 'transfer';
 
@@ -83,6 +86,11 @@ class InventoryMovement extends Model
     public function itemRequest(): BelongsTo
     {
         return $this->belongsTo(ItemRequest::class);
+    }
+
+    public function delivery(): BelongsTo
+    {
+        return $this->belongsTo(Delivery::class);
     }
 
     public function vendor(): BelongsTo
@@ -136,6 +144,7 @@ class InventoryMovement extends Model
             self::TYPE_IN_PRODUCTION => 'Masuk — Hasil Produksi',
             self::TYPE_OUT_PRODUCTION => 'Keluar — Produksi',
             self::TYPE_OUT_OTHER => 'Keluar — Lainnya',
+            self::TYPE_OUT_DELIVERY => 'Keluar — Pengiriman',
             self::TYPE_TRANSFER_IN => 'Pindah Gudang (masuk)',
             self::TYPE_TRANSFER_OUT => 'Pindah Gudang (keluar)',
             self::TYPE_ADJUSTMENT_IN => 'Penyesuaian (+)',
@@ -164,6 +173,7 @@ class InventoryMovement extends Model
         return [
             self::TYPE_OUT_PRODUCTION,
             self::TYPE_OUT_OTHER,
+            self::TYPE_OUT_DELIVERY,
             self::TYPE_TRANSFER_OUT,
             self::TYPE_ADJUSTMENT_OUT,
         ];
